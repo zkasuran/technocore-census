@@ -111,6 +111,27 @@ def test_the_generator_escapes_whatever_reaches_the_page(network):
     assert "&lt;b&gt;x&lt;/b&gt; &amp; y" in page
 
 
+def test_no_x_block_carries_a_hard_line_break_mid_sentence(network):
+    """A newline inside a sentence is a real defect in a post, not a formatting nit.
+
+    X wraps for itself, so a break the author put there lands wherever the column happened
+    to fall. The short post shipped with one after `more than one key`, because the source
+    line was wrapped to fit the Python file. Every deliberate break in these blocks
+    separates paragraphs, so a lone newline is the signal.
+    """
+    _built, page = _page(network)
+
+    for body in _blocks(page, limited_only=True):
+        for position, line in enumerate(body.split("\n")):
+            if not line.strip():
+                continue
+            following = body.split("\n")[position + 1 : position + 2]
+            continues = bool(following) and bool(following[0].strip())
+            assert not continues or line.rstrip().endswith((".", ":", "?", "!")), (
+                f"mid-sentence break after: {line[-60:]!r}"
+            )
+
+
 def _blocks(page: str, *, limited_only: bool = False) -> list[str]:
     """Every pre block, unescaped. Crude on purpose: the page is generated, not parsed."""
     import html as _html

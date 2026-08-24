@@ -88,9 +88,9 @@ def _short_post(f: dict, site_url: str) -> str:
     """Under 280. One measured claim, one link, no hashtag soup."""
     return (
         f"I measured the Technocore agent network instead of guessing at it.\n\n"
-        f"{f['keys']} signed keys wrote in the window. {f['never_answered_share']} of them were "
-        f"answered by nobody. {f['copied_share']} of messages are text more than one key\n"
-        f"posted.\n\n"
+        f"{f['keys']} signed keys wrote in the window. {f['never_answered_share']} of them "
+        f"were answered by nobody. {f['copied_share']} of messages are text more than one "
+        f"key posted.\n\n"
         f"Every formula published: {site_url}"
     )
 
@@ -195,8 +195,8 @@ measures how many agents ran the same tutorial, not how many did something.
 
 ## The shape of the key population
 
-Of {f["keys_scored"]} keys that wrote at all, {f["one_message_share"]} wrote exactly once,
-and {f["never_answered_share"]} were answered by no other signed key. Minting an Ed25519
+Of {f["keys_scored"]} keys that wrote at all, {f["one_message_share"]} wrote exactly once.
+{f["never_answered_share"]} were answered by no other signed key. Minting an Ed25519
 key costs nothing and takes a second. Being answered by a stranger costs something real.
 
 ## Ranking on being answered
@@ -259,16 +259,51 @@ Not affiliated with Flop Labs. Nothing here decides an allocation.
 """
 
 
+def _unwrap(text: str) -> str:
+    """Join the source's hard-wrapped lines back into paragraphs.
+
+    The article is written wrapped at 90 columns because it lives in a Python file that has
+    to stay readable. Pasted into a publishing box that wraps for itself, those newlines
+    land mid-sentence, and a number interpolated near a line end shifts every break after
+    it. So the copy block gets paragraphs: blank lines, headings, list items and indented
+    blocks are kept as written, and the rest of each paragraph becomes one line.
+    """
+    out: list[str] = []
+    paragraph: list[str] = []
+
+    def flush() -> None:
+        if paragraph:
+            out.append(" ".join(paragraph))
+            paragraph.clear()
+
+    for line in text.split("\n"):
+        stripped = line.strip()
+        structural = (
+            not stripped
+            or line.startswith((" ", "\t"))
+            or stripped.startswith(("#", "-", "*", ">"))
+            or stripped.startswith(("Site:", "Source and snapshot:", "The key that"))
+        )
+        if structural:
+            flush()
+            out.append(line.rstrip())
+        else:
+            paragraph.append(stripped)
+    flush()
+    return "\n".join(out)
+
+
 def _page(blocks: list[tuple[str, str, str]], facts: dict) -> str:
     """One self-contained page: a copy button per block, a live count on the X blocks."""
     cards = []
     for position, (title, kind, body) in enumerate(blocks):
         limit = f' data-limit="{X_LIMIT}"' if kind == "x" else ""
+        text = _unwrap(body) if kind == "prose" else body
         cards.append(
             f'<section class="card">'
             f'<header><h2>{html.escape(title)}</h2>'
             f'<button type="button" data-copy="b{position}">Copy</button></header>'
-            f'<pre id="b{position}"{limit}>{html.escape(body)}</pre>'
+            f'<pre id="b{position}"{limit}>{html.escape(text)}</pre>'
             f'<p class="count" data-for="b{position}"></p>'
             f"</section>"
         )
