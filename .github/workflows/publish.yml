@@ -25,8 +25,11 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
-      - run: uv pip install --system -e .
-      - run: python -m technocore_census.cli render --report data/report.json --out site
+      # --system alone hits Ubuntu's externally-managed marker on the runner's
+      # interpreter. uv's own Python is the one this project pins anyway.
+      - run: uv venv --python 3.12
+      - run: uv pip install -e .
+      - run: uv run python -m technocore_census.cli render --report data/report.json --out site
       - name: keep the skill beside the site so an agent can install it from one URL
         run: cp SKILL.md site/skill.md
       - uses: actions/upload-pages-artifact@v4

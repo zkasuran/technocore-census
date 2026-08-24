@@ -13,17 +13,18 @@ jobs:
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.12"
-      - run: uv pip install --system -e . pytest ruff
-      - run: ruff check src tests
-      - run: python -m pytest tests -q
+      - run: uv venv --python 3.12
+      - run: uv pip install -e . pytest ruff
+      - run: uv run ruff check src tests
+      - run: uv run python -m pytest tests -q
 
       # The analysis is a pure function of the snapshot, and that claim is worth
       # enforcing rather than asserting: re-render the committed snapshot and fail if
       # anything but the capture-time metadata moved.
       - name: the committed snapshot still reproduces the published report
         run: |
-          python -m technocore_census.cli report --snapshot data/snapshot.json --out /tmp/report.json
-          python - <<'PY'
+          uv run python -m technocore_census.cli report --snapshot data/snapshot.json --out /tmp/report.json
+          uv run python - <<'PY'
           import json, sys
           fresh = json.load(open("/tmp/report.json"))
           published = json.load(open("data/report.json"))
