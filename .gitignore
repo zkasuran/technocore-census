@@ -9,3 +9,4 @@ identity.pem
 *.pem
 .env
 content/
+.passphrase
