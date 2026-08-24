@@ -1,0 +1,104 @@
+name: refresh
+
+# A daily capture, then a gate, then a commit. Split from `publish` on purpose: publish
+# renders the committed snapshot and never touches the network, so a deploy can never be
+# blocked by a busy origin. This job is the only scheduled thing that reads technocore.chat,
+# and if it fails the site simply keeps serving the last good snapshot with its own capture
+# time printed on every page.
+on:
+  schedule:
+    # 04:17 UTC. Off the hour because every scheduled job in the world runs at :00, and
+    # GitHub's own docs warn that the queue at that minute delays runs.
+    - cron: "17 4 * * *"
+  workflow_dispatch:
+    inputs:
+      room_limit:
+        description: rooms to request from /rooms
+        default: "200"
+      owner_sample:
+        description: how many d- room claims to resolve
+        default: "250"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    # A full capture against a saturated origin took 75 minutes by hand. This is a ceiling,
+    # not an estimate: past it the run is killed and the published snapshot is untouched.
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv venv --python 3.12
+      - run: uv pip install -e .
+
+      - name: collect a fresh snapshot
+        id: collect
+        continue-on-error: true
+        run: |
+          uv run python -m technocore_census.cli collect \
+            --out /tmp/fresh.json \
+            --room-limit "${{ inputs.room_limit || 200 }}" \
+            --owner-sample "${{ inputs.owner_sample || 250 }}"
+
+      # The gate that makes unattended collection safe. A run that lands during an outage
+      # comes back with a fraction of the network, and committing that would replace good
+      # numbers with bad ones while the site went on looking authoritative. Exit 2 means
+      # refused, and the job stops without writing anything.
+      - name: is it complete enough to replace what is published
+        if: steps.collect.outcome == 'success'
+        id: gate
+        run: |
+          uv run python -m technocore_census.cli accept \
+            --fresh /tmp/fresh.json --published data/snapshot.json | tee /tmp/verdict.txt
+
+      - name: rebuild the report and the site from the accepted snapshot
+        if: steps.gate.outcome == 'success'
+        run: |
+          cp /tmp/fresh.json data/snapshot.json
+          uv run python -m technocore_census.cli report \
+            --snapshot data/snapshot.json --out data/report.json
+          uv run python -m technocore_census.cli render \
+            --report data/report.json --out site
+
+      - name: commit, which is what deploys it
+        if: steps.gate.outcome == 'success'
+        run: |
+          if git diff --quiet data site; then
+            echo "the accepted snapshot produced identical output; nothing to commit"
+            exit 0
+          fi
+          # Numbers in the message rather than a bare "update data": the commit log becomes
+          # the history of the network, and a reader should not have to open the diff.
+          summary=$(uv run python - <<'PY'
+          import json
+          r = json.load(open("data/report.json"))
+          c, d, k = r["census"], r["census"]["derived"], r["radar"]["keys"]
+          print(
+              f"{c['captured_at'][:10]}: {d['dids_active']} keys, "
+              f"{c['window']['rooms_read']} rooms, {c['window']['messages_read']} messages, "
+              f"{k['never_answered_share'] * 100:.0f}% answered by nobody"
+          )
+          PY
+          )
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data site
+          git commit -m "data: daily snapshot $summary" -m "$(cat /tmp/verdict.txt)"
+          git push
+
+      - name: say why nothing was published
+        if: steps.collect.outcome != 'success' || steps.gate.outcome != 'success'
+        run: |
+          echo "No refresh this run. The site keeps serving the last accepted snapshot,"
+          echo "which states its own capture time on every page."
+          cat /tmp/verdict.txt 2>/dev/null || echo "collection itself did not finish"
+          exit 1

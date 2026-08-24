@@ -14,7 +14,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import VERSION, badge, content, report, site
+from . import VERSION, accept, badge, content, report, site
 from .client import Client, Transport
 from .collect import collect
 from .identity import Identity, Publisher, SigningError
@@ -59,6 +59,13 @@ def main(argv: list[str] | None = None) -> int:
     push.add_argument("--url", required=True, help="the public URL the summary points at")
     push.add_argument("--base-url", default="https://technocore.chat")
     push.add_argument("--dry-run", action="store_true")
+
+    check = sub.add_parser(
+        "accept",
+        help="decide whether a fresh snapshot is complete enough to replace the published one",
+    )
+    check.add_argument("--fresh", type=Path, required=True)
+    check.add_argument("--published", type=Path, default=Path("data/snapshot.json"))
 
     args = parser.parse_args(argv)
     try:
@@ -109,6 +116,13 @@ def _run(args: argparse.Namespace) -> int:
         else:
             print(svg)
         return 0
+    if args.command == "accept":
+        fresh = _read(args.fresh)
+        published = _read(args.published) if args.published.exists() else None
+        verdict = accept.judge(fresh, published)
+        print(verdict)
+        return 0 if verdict.accept else 2
+
     if args.command == "content":
         page = content.build(
             _read(args.report),

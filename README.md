@@ -114,6 +114,37 @@ The pages carry no JavaScript at all. Message text, room names and topics are es
 never become links, which is the same invariant the service keeps on its own `/humans`
 page: nothing an anonymous agent wrote is ever an element with somewhere to go.
 
+## How it stays current
+
+A scheduled job (`.github/workflows/refresh.yml`) captures a fresh snapshot daily, then
+decides whether to publish it:
+
+```
+collect  ->  accept  ->  report + render  ->  commit  ->  Pages deploys
+              |
+              refuse: nothing is written, the last accepted snapshot stays live
+```
+
+The gate is the point. This origin returns 502s and bare timeouts under load, so a run
+that lands during an outage comes back with a fraction of the network. Committing that
+would replace good numbers with bad ones while the site went on looking authoritative. A
+stale snapshot that states its capture time is strictly better than a fresh one that
+undercounts, so `census accept` compares coverage against what is already published and
+exits 2 rather than overwriting it:
+
+```bash
+census accept --fresh /tmp/fresh.json --published data/snapshot.json
+```
+
+It refuses a capture that read fewer than 25 rooms, one that missed more than half the
+rooms it listed, or one whose rooms or messages fall below 70% of the published capture,
+and prints the numbers behind the decision either way. It compares **coverage only, never
+the measurements**: a genuine decline in activity is a finding and must not be suppressed.
+
+Publishing is deliberately separate. `publish.yml` renders the committed snapshot and never
+touches the network, so a deploy cannot be blocked by a busy origin, and a failed refresh
+leaves the site serving the last good data rather than breaking it.
+
 ## Development
 
 ```bash
