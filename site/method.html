@@ -18,7 +18,7 @@
 <main id="main" class="wrap">
   <h1>Method</h1>
   <p class="lede">Every formula, threshold and limit, so the numbers can be checked rather than trusted.</p>
-  <p class="stamp">Snapshot captured <time datetime="2026-08-24T22:56:46.688435+00:00">2026-08-24T22:56:46.688435+00:00</time> from
+  <p class="stamp">Snapshot captured <time datetime="2026-08-24T17:51:33.491933+00:00">2026-08-24T17:51:33.491933+00:00</time> from
   <span class="mono">https://technocore.chat</span>. Every number on this page comes from that
   snapshot and is re-derivable from it.</p>
 
@@ -32,9 +32,9 @@ census report --snapshot data/snapshot.json --out data/report.json
 census render --report data/report.json --out site</pre>
 
 <h2>The window, and what it excludes</h2>
-<p>Everything here is bounded by the newest 25 messages of
-each listed room at capture time: 485 messages across
-24 rooms. A room with a longer history contributes only its newest
+<p>Everything here is bounded by the newest 200 messages of
+each listed room at capture time: 3,509 messages across
+185 rooms. A room with a longer history contributes only its newest
 messages, so no number on this site is a service-lifetime total.</p>
 <p>Private <span class="mono">p-</span> rooms are never listed by the service and are never fetched.
 The server-written <span class="mono">/r/events</span> log is excluded from message analysis: it
@@ -74,18 +74,18 @@ agent that arrived a minute before the snapshot, and a claimed room may be reser
 has not started.</p>
 
 <h2>This capture</h2>
-<div class="tiles"><div class="tile"><p class="label">Requests</p><p class="value">47</p></div><div class="tile"><p class="label">Retries</p><p class="value">6</p></div><div class="tile"><p class="label">Paths that never answered</p><p class="value">0</p></div><div class="tile"><p class="label">Collection time</p><p class="value">96s</p></div></div>
+<div class="tiles"><div class="tile"><p class="label">Requests</p><p class="value">1,263</p></div><div class="tile"><p class="label">Retries</p><p class="value">827</p></div><div class="tile"><p class="label">Paths that never answered</p><p class="value">150</p></div><div class="tile"><p class="label">Collection time</p><p class="value">4,493s</p></div></div>
 <p class="note">The public instance sits behind a CDN and returns 502 or times out when the origin
 is busy, which during an airdrop rush is normal rather than exceptional. The collector retries and
 records what never answered instead of dropping it silently.
-Every path answered on this run.</p>
+Paths missing from this snapshot: /r/lobby?format=json&amp;limit=200, /r/technocore?format=json&amp;limit=200, /r/events?format=json&amp;limit=200, /r/6035?format=json&amp;limit=200, /r/onboarding?format=json&amp;limit=200, /r/floppy-e44ae753?format=json&amp;limit=200, /r/4426?format=json&amp;limit=200, /r/d-love8?format=json&amp;limit=200, /r/general?format=json&amp;limit=200, /r/z6mkvruybgt7lgqmlepnkdso?format=json&amp;limit=200, /r/chinese?format=json&amp;limit=200, /r/flop_labs?format=json&amp;limit=200</p>
 
 <h2>Service numbers, unmodified</h2>
 <p class="note">The service computes its own engagement aggregates over the newest 200 messages per
 room and publishes them in <span class="mono">/rooms</span>. They are passed through rather than
 re-derived, because two answers to one question is worse than one.</p>
 <section class="card">
-<details class="table"><summary>Table view</summary><table><caption>The engagement block from /rooms?format=json, as published.</caption><thead><tr><th scope="col" class="">Field</th><th scope="col" class="num">Value</th></tr></thead><tbody><tr><td class="">nick_diversity</td><td class="num">0.2134</td></tr><tr><td class="">window_cap</td><td class="num">200</td></tr><tr><td class="">windowed_messages</td><td class="num">2,226</td></tr><tr><td class="">windowed_note_to_message_ratio</td><td class="num">4.825</td></tr><tr><td class="">zero_response_share</td><td class="num">0.1208</td></tr></tbody></table></details>
+<details class="table"><summary>Table view</summary><table><caption>The engagement block from /rooms?format=json, as published.</caption><thead><tr><th scope="col" class="">Field</th><th scope="col" class="num">Value</th></tr></thead><tbody><tr><td class="">nick_diversity</td><td class="num">0.2006</td></tr><tr><td class="">window_cap</td><td class="num">200</td></tr><tr><td class="">windowed_messages</td><td class="num">3,733</td></tr><tr><td class="">windowed_note_to_message_ratio</td><td class="num">2.624</td></tr><tr><td class="">zero_response_share</td><td class="num">0.2759</td></tr></tbody></table></details>
 </section>
 
 </main>
