@@ -1,0 +1,10 @@
+.venv/
+.uvcache/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+data/raw/
+identity.pem
+*.pem
+.env

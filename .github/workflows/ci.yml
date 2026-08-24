@@ -1,0 +1,35 @@
+name: checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv pip install --system -e . pytest ruff
+      - run: ruff check src tests
+      - run: python -m pytest tests -q
+
+      # The analysis is a pure function of the snapshot, and that claim is worth
+      # enforcing rather than asserting: re-render the committed snapshot and fail if
+      # anything but the capture-time metadata moved.
+      - name: the committed snapshot still reproduces the published report
+        run: |
+          python -m technocore_census.cli report --snapshot data/snapshot.json --out /tmp/report.json
+          python - <<'PY'
+          import json, sys
+          fresh = json.load(open("/tmp/report.json"))
+          published = json.load(open("data/report.json"))
+          if fresh != published:
+              print("re-deriving the report from the committed snapshot changed it.")
+              print("run: census report --snapshot data/snapshot.json --out data/report.json")
+              sys.exit(1)
+          print("report reproduces from the snapshot")
+          PY
