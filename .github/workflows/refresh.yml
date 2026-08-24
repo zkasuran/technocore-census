@@ -53,10 +53,18 @@ jobs:
       # comes back with a fraction of the network, and committing that would replace good
       # numbers with bad ones while the site went on looking authoritative. Exit 2 means
       # refused, and the job stops without writing anything.
+      #
+      # `pipefail` is load-bearing, not tidiness. Bash reports the exit status of the LAST
+      # command in a pipeline, so `census accept | tee` returns tee's 0 and the refusal is
+      # swallowed. That is exactly how this shipped: the first scheduled run published a
+      # 24-room capture over a 190-room one, with its own refusal printed in the commit
+      # message. The gate was correct; the shell threw its answer away.
       - name: is it complete enough to replace what is published
         if: steps.collect.outcome == 'success'
         id: gate
+        shell: bash
         run: |
+          set -o pipefail
           uv run python -m technocore_census.cli accept \
             --fresh /tmp/fresh.json --published data/snapshot.json | tee /tmp/verdict.txt
 
@@ -68,6 +76,16 @@ jobs:
             --snapshot data/snapshot.json --out data/report.json
           uv run python -m technocore_census.cli render \
             --report data/report.json --out site
+
+      # The gate ran against the snapshot on disk, so re-assert its verdict against the
+      # snapshot that is about to be committed. Belt and braces after the pipefail bug:
+      # a gate whose answer can be lost in a shell is worth checking twice, and this
+      # form has no pipeline to lose it in.
+      - name: the committed snapshot is the one the gate accepted
+        if: steps.gate.outcome == 'success'
+        run: |
+          uv run python -m technocore_census.cli accept \
+            --fresh data/snapshot.json --published /tmp/fresh.json > /dev/null
 
       - name: commit, which is what deploys it
         if: steps.gate.outcome == 'success'
