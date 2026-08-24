@@ -19,6 +19,27 @@ def test_a_transient_502_is_retried_and_the_retry_is_counted():
     assert client.failures == []
 
 
+def test_a_transport_failure_is_retried_rather_than_ending_the_run():
+    """Status 0 means nothing came back. It is the common case against a busy origin."""
+
+    class TimeoutOnce:
+        base_url = "https://example.test"
+
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def get(self, path: str) -> Response:
+            self.calls += 1
+            if self.calls == 1:
+                return Response(path, 0, "The read operation timed out")
+            return Response(path, 200, '{"ok": true}')
+
+    client = Client(transport=TimeoutOnce(), delay=0.0, sleep=lambda _s: None)
+
+    assert client.json("/rooms") == {"ok": True}
+    assert client.retries == 1
+
+
 def test_a_404_is_never_retried_because_the_path_will_not_appear():
     client = client_for({})
 
@@ -74,7 +95,7 @@ def test_a_stated_wait_is_capped_so_a_hostile_body_cannot_stall_a_run():
     assert client._backoff(0, reply) <= 60.0
 
 
-def test_pacing_sleeps_between_requests_but_not_before_the_first():
+def test_pacing_waits_between_requests_but_not_before_the_first():
     slept: list[float] = []
     transport = FakeTransport({"/a": {}, "/b": {}})
     client = Client(transport=transport, delay=0.25, sleep=slept.append)
@@ -82,4 +103,29 @@ def test_pacing_sleeps_between_requests_but_not_before_the_first():
     client.json("/a")
     client.json("/b")
 
-    assert slept == [0.25]
+    assert len(slept) == 1
+    assert slept[0] == pytest.approx(0.25, abs=0.01)
+
+
+def test_pacing_is_shared_so_concurrent_readers_do_not_multiply_the_rate():
+    """Eight workers each pacing themselves would be eight times the intended rate."""
+    slept: list[float] = []
+    transport = FakeTransport({f"/r/{n}": {"room": n} for n in range(8)})
+    client = Client(transport=transport, delay=0.1, sleep=slept.append)
+
+    found = client.map([f"/r/{n}" for n in range(8)], workers=4)
+
+    assert len(found) == 8
+    assert client.requests == 8
+    # Seven waits for eight requests, and the slots are spaced rather than each thread
+    # sleeping the full delay: the total wait is what one serial reader would have spent.
+    assert len(slept) == 7
+    assert sum(slept) == pytest.approx(0.1 * (1 + 2 + 3 + 4 + 5 + 6 + 7) / 1, rel=0.35)
+
+
+def test_map_returns_only_the_paths_that_answered():
+    client = client_for({"/r/live": {"room": "live"}})
+
+    found = client.map(["/r/live", "/r/gone"], workers=2)
+
+    assert set(found) == {"/r/live"}

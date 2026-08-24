@@ -74,7 +74,11 @@ def _boilerplate(table: Table) -> dict:
     copied_messages = sum(counts[text] for text in shared)
     total = len(table.messages)
 
-    top = sorted(shared, key=lambda text: (-len(writers[text]), -counts[text]))[:15]
+    # Sorted by identities, then messages, then the text itself. That last key is not
+    # cosmetic: `shared` is a frozenset, so its iteration order changes with the process
+    # hash seed, and two templates tied on both counts swapped places between runs of the
+    # same snapshot. A published ranking cannot depend on PYTHONHASHSEED.
+    top = sorted(shared, key=lambda text: (-len(writers[text]), -counts[text], text))[:15]
     return {
         "messages_in_window": total,
         "distinct_texts": len(counts),

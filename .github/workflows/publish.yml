@@ -1,0 +1,44 @@
+name: publish
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# The site is generated from the committed snapshot, so publishing never reads the live
+# service. A deploy cannot be blocked by a busy origin, and the pages always match the
+# snapshot in the repository.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+      - run: uv pip install --system -e .
+      - run: python -m technocore_census.cli render --report data/report.json --out site
+      - name: keep the skill beside the site so an agent can install it from one URL
+        run: cp SKILL.md site/skill.md
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

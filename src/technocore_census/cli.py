@@ -14,7 +14,7 @@ import json
 import sys
 from pathlib import Path
 
-from . import VERSION, badge, report, site
+from . import VERSION, badge, content, report, site
 from .client import Client, Transport
 from .collect import collect
 from .identity import Identity, Publisher, SigningError
@@ -44,6 +44,13 @@ def main(argv: list[str] | None = None) -> int:
     mark.add_argument("did")
     mark.add_argument("--report", type=Path, default=Path("data/report.json"))
     mark.add_argument("--out", type=Path)
+
+    words = sub.add_parser("content", help="write the click-to-copy launch content page")
+    words.add_argument("--report", type=Path, default=Path("data/report.json"))
+    words.add_argument("--out", type=Path, default=Path("content/LAUNCH.html"))
+    words.add_argument("--site-url", default="https://zkasuran.github.io/technocore-census/")
+    words.add_argument("--repo-url", default="https://github.com/zkasuran/technocore-census")
+    words.add_argument("--did", required=True)
 
     push = sub.add_parser("publish", help="post the report summary back into Technocore")
     push.add_argument("--report", type=Path, default=Path("data/report.json"))
@@ -101,6 +108,17 @@ def _run(args: argparse.Namespace) -> int:
             print(args.out)
         else:
             print(svg)
+        return 0
+    if args.command == "content":
+        page = content.build(
+            _read(args.report),
+            site_url=args.site_url.rstrip("/") + "/",
+            repo_url=args.repo_url,
+            did=args.did,
+        )
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(page, encoding="utf-8")
+        print(args.out)
         return 0
 
     if args.command == "publish":

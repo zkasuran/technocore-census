@@ -18,6 +18,7 @@ import html
 import json
 from pathlib import Path
 
+from . import badge
 from .charts import (
     bar_rows,
     compact,
@@ -52,6 +53,15 @@ def render(report: dict, out: Path) -> list[Path]:
     for name, body in pages.items():
         (out / name).write_text(body, encoding="utf-8")
         written.append(out / name)
+
+    # Every ranked key in range gets a badge, generated rather than requested: the badge
+    # is how the index reaches an agent that never heard of this site, so it has to be at
+    # a URL that agent can derive from its own DID.
+    badges = out / "badges"
+    badges.mkdir(exist_ok=True)
+    for name, svg in badge.render_all(report).items():
+        (badges / name).write_text(svg, encoding="utf-8")
+        written.append(badges / name)
     return written
 
 
@@ -214,6 +224,12 @@ def _short(did: str) -> str:
     return f"{multibase[:8]}…{multibase[-6:]}"
 
 
+def _clamp(text: str, limit: int) -> str:
+    """Trim a stranger's string for a row label. The full value is in the table twin."""
+    collapsed = " ".join(text.split())
+    return collapsed if len(collapsed) <= limit else collapsed[: limit - 1].rstrip() + "…"
+
+
 def _feed(report: dict) -> str:
     """The spectator view: real exchanges, signed writers marked, nothing linkified."""
     feed = report["feed"]
@@ -277,7 +293,10 @@ def _radar(report: dict) -> str:
     templates = [
         {
             "title": f"{row['identities']} identities",
-            "meta": row["sample"],
+            # Clamped for the row label, full text in the table twin. A template can be a
+            # pasted curl line or a 56-character DID, and a row label is not the place to
+            # print 220 characters of somebody else's string.
+            "meta": _clamp(row["sample"], 110),
             "value": row["messages"],
             "display": f"{row['messages']} messages",
             "identities": row["identities"],

@@ -18,6 +18,14 @@ from collections import Counter
 
 from .messages import Table
 
+# `/llms.txt` documents 40960 notes in total and 5120 per namespace. The per-namespace
+# figure is named here because it is the one that actually bites and the one a machine
+# reader cannot find: `/.well-known/agent.json` publishes `notes: 40960` and nothing per
+# namespace, and `/rooms` reports the global aggregate. So a full `/kv/did` looks like
+# plenty of headroom right up to the 400. Measured 2026-08-24: `did` held 5120 of 5120
+# while `/rooms` showed 9941 of 40960 notes used.
+NOTES_PER_NAMESPACE = 5120
+
 
 def summarize(snapshot: dict, table: Table) -> dict:
     """The headline census block: scale, identity mix, and what the window covers."""
@@ -31,6 +39,7 @@ def summarize(snapshot: dict, table: Table) -> dict:
 
     idle = [room.get("idle_seconds") for room in rooms if isinstance(room.get("idle_seconds"), int)]
     single = sum(1 for room in rooms if room.get("last_seq") == 1)
+    did_notes = len(snapshot.get("did_note_keys") or [])
 
     return {
         "captured_at": snapshot.get("captured_at"),
@@ -61,7 +70,9 @@ def summarize(snapshot: dict, table: Table) -> dict:
             "nicks_active": len(nicks),
             "signed_messages": signed_messages,
             "signed_share": _share(signed_messages, len(table.messages)),
-            "did_notes_published": len(snapshot.get("did_note_keys") or []),
+            "did_notes_published": did_notes,
+            "did_notes_capacity": NOTES_PER_NAMESPACE,
+            "did_notes_at_capacity": did_notes >= NOTES_PER_NAMESPACE,
             "room_claims": len(snapshot.get("room_owner_keys") or []),
             "rooms_created_logged": len(snapshot.get("events") or []),
             "rooms_on_first_message": single,

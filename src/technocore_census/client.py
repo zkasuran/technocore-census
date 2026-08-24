@@ -21,9 +21,11 @@ from __future__ import annotations
 import json
 import random
 import re
+import threading
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -34,7 +36,15 @@ USER_AGENT = "technocore-census/0.1 (+https://github.com/zkasuran/technocore-cen
 # under half the bucket, so the budget footer never appears and a parallel reader on the
 # same address still fits. Politeness, not a limit we discovered by tripping it.
 DEFAULT_DELAY_SECONDS = 0.25
-RETRY_STATUSES = frozenset({429, 500, 502, 503, 504, 520, 521, 522, 524})
+# How many rooms are read at once. Bounded well under the read budget, and the point is
+# latency rather than throughput: a dead path holds a connection for the whole timeout, so
+# without concurrency the sweep is limited by how slow the worst rooms are.
+DEFAULT_WORKERS = 8
+# Status 0 is this module's own marker for "nothing came back": a connect timeout, a read
+# timeout, a refused connection. It belongs here rather than raising, and it is first in
+# the set because it is the most common failure against a saturated origin by a wide
+# margin. Leaving it out made the first timeout abort a whole collection run.
+RETRY_STATUSES = frozenset({0, 429, 500, 502, 503, 504, 520, 521, 522, 524})
 MAX_BYTES = 8 << 20
 
 
@@ -59,7 +69,10 @@ class Transport:
     """The seam every test replaces. Real implementation is one urlopen call."""
 
     base_url: str = DEFAULT_BASE_URL
-    timeout: float = 30.0
+    # Deliberately short. Against this origin a request that has not answered in 20
+    # seconds is usually never going to, and retrying costs less than waiting: 4 attempts
+    # at 30s is two minutes spent on one room out of two hundred.
+    timeout: float = 20.0
 
     def get(self, path: str) -> Response:
         request = urllib.request.Request(
@@ -83,34 +96,56 @@ class Transport:
 
 @dataclass
 class Client:
-    """Paced, retrying reads. Counts what it did so a snapshot can state its own cost."""
+    """Paced, retrying reads. Counts what it did so a snapshot can state its own cost.
+
+    Pacing is global rather than per call site: `_pace` holds a lock and a next-allowed
+    time, so the request rate is `1/delay` no matter how many threads are reading. That is
+    what makes `map` safe. Eight workers each sleeping `delay` between their own requests
+    would be eight times the intended rate and would trip the write of the read budget.
+    """
 
     transport: Transport = field(default_factory=Transport)
     delay: float = DEFAULT_DELAY_SECONDS
-    attempts: int = 4
+    # Six, not four. Measured against the live instance during an airdrop rush, a single
+    # path timing out three times in a row is ordinary, and the listing is not optional:
+    # losing it loses the whole run rather than one room.
+    attempts: int = 6
     sleep: Any = time.sleep
     requests: int = 0
     retries: int = 0
     failures: list[str] = field(default_factory=list)
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+    _next_at: float = field(default=0.0, repr=False)
 
     def get(self, path: str) -> Response:
         """Read one path, retrying transport failures and 5xx. Raises only on giving up."""
         last: Response | None = None
         for attempt in range(self.attempts):
-            if self.requests:
-                self.sleep(self.delay)
-            self.requests += 1
+            self._pace()
             last = self.transport.get(path)
             if last.status == 200:
                 return last
             if last.status not in RETRY_STATUSES:
                 raise FetchError(f"{path}: HTTP {last.status}")
-            self.retries += 1
+            with self._lock:
+                self.retries += 1
             if attempt + 1 < self.attempts:
                 self.sleep(self._backoff(attempt, last))
-        self.failures.append(path)
+        with self._lock:
+            self.failures.append(path)
         status = last.status if last else 0
         raise FetchError(f"{path}: gave up after {self.attempts} attempts (last HTTP {status})")
+
+    def _pace(self) -> None:
+        """Wait for this reader's turn, then claim the next slot. Shared across threads."""
+        with self._lock:
+            first = self.requests == 0
+            self.requests += 1
+            now = time.monotonic()
+            due = max(self._next_at, now)
+            self._next_at = due + self.delay
+        if not first and (wait := due - now) > 0:
+            self.sleep(wait)
 
     def json(self, path: str) -> Any:
         """Read a path that must answer JSON, and say so when it does not."""
@@ -126,6 +161,24 @@ class Client:
             return self.json(path)
         except FetchError:
             return None
+
+    def map(self, paths: list[str], *, workers: int = 1) -> dict[str, Any]:
+        """Read many independent paths concurrently. Absent ones are simply missing.
+
+        Concurrency is here because the bottleneck against this origin is latency, not the
+        rate limit: a successful read can take fifteen seconds and a dead one holds a
+        connection for the full timeout, while the published budget allows 600 reads a
+        minute. Reading one at a time leaves that budget almost entirely unspent and turns
+        a two hundred room sweep into an hour of waiting.
+        """
+        if workers <= 1 or len(paths) <= 1:
+            return {path: value for path in paths if (value := self.try_json(path)) is not None}
+        found: dict[str, Any] = {}
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            for path, value in zip(paths, pool.map(self.try_json, paths), strict=True):
+                if value is not None:
+                    found[path] = value
+        return found
 
     def _backoff(self, attempt: int, reply: Response) -> float:
         """Exponential with jitter, except when the server named a delay itself."""

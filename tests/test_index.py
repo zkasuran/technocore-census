@@ -21,7 +21,8 @@ from tests.conftest import (
 
 
 def _index(network):
-    return index.build(messages.build(collect(client_for(network), owner_sample=10)))
+    snapshot = collect(client_for(network), owner_sample=10, progress=lambda _m: None)
+    return index.build(messages.build(snapshot))
 
 
 def _row(built, did):

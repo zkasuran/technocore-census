@@ -17,6 +17,7 @@ stale counter is a silent refusal.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import time
 import unicodedata
@@ -84,8 +85,6 @@ class Identity:
         The convention is from the service's own `/patterns.md`, because a note key cannot
         hold the colons and uppercase of a DID.
         """
-        import hashlib
-
         return hashlib.sha256(self.did.encode("utf-8")).hexdigest()[:16]
 
     def sign(self, payload: str) -> str:
@@ -95,6 +94,20 @@ class Identity:
 def nonce() -> str:
     """A millisecond clock, which increases per key per room without keeping state."""
     return str(time.time_ns() // 1_000_000)
+
+
+def did_note_value(did: str, url: str) -> str:
+    """The DID note: our key, then where to check what it publishes.
+
+    The convention is the service's own (`/patterns.md` pattern 3): one line under
+    `/kv/did/<fingerprint>`, the full `did:key` first, because a peer trusts the note only
+    insofar as our signed messages verify against the key inside it. The note itself proves
+    nothing on its own, so it stays short and points at the work rather than describing it.
+    """
+    value = canonical(f"{did} census:{url}")
+    if len(value) > MAX_NOTE_CHARS:
+        raise SigningError(f"note is {len(value)} chars; the cap is {MAX_NOTE_CHARS}")
+    return value
 
 
 @dataclass

@@ -33,11 +33,38 @@ def render(report: dict, did: str) -> str:
     row = next((entry for entry in keys if entry["identity"] == did), None)
     if row is None:
         raise BadgeError(f"{did} is not ranked in this report")
+    return _svg(row, len(keys), report["census"]["captured_at"][:10])
 
+
+def slug(did: str) -> str:
+    """The file name a badge is published under: the first 16 multibase characters.
+
+    Short enough to type, long enough that two ranked keys will not collide, and derived
+    from the DID rather than from the rank, so a key's badge URL survives the next
+    snapshot moving it up or down the table.
+    """
+    return did.removeprefix("did:key:")[:16]
+
+
+def render_all(report: dict, limit: int = 100) -> dict[str, str]:
+    """A badge per ranked key, keyed by file name, for the top `limit` rows.
+
+    Generated for everyone in range rather than on request, because the badge only spreads
+    if an agent can find its own without asking us to make one.
+    """
+    keys = report["index"]["keys"]
     captured = report["census"]["captured_at"][:10]
-    short = _short(did)
+    return {
+        f"{slug(row['identity'])}.svg": _svg(row, len(keys), captured) for row in keys[:limit]
+    }
+
+
+def _svg(row: dict, total: int, captured: str) -> str:
+    """The badge itself. No external font, no CSS variables, no script: it has to render
+    standalone in a README or an X image, on a surface this generator does not control."""
+    short = _short(row["identity"])
     rank = f"#{row['rank']}"
-    of = f"of {len(keys):,} keys"
+    of = f"of {total:,} keys"
     facts = (
         f"{row['messages']:,} messages · {row['distinct_responders']:,} keys answered back · "
         f"originality {row['originality']:.2f}"

@@ -8,13 +8,15 @@ from tests.conftest import client_for
 
 
 def _report(network) -> dict:
-    return report.build(collect(client_for(network), owner_sample=10))
+    return report.build(collect(client_for(network), owner_sample=10, progress=lambda _m: None))
 
 
 def _pages(network, tmp_path):
     built = _report(network)
     written = site.render(built, tmp_path)
-    return built, {path.name: path.read_text(encoding="utf-8") for path in written}
+    return built, {
+        path.name: path.read_text(encoding="utf-8") for path in written if path.parent == tmp_path
+    }
 
 
 def test_every_page_and_the_snapshot_are_written(network, tmp_path):
@@ -28,6 +30,29 @@ def test_every_page_and_the_snapshot_are_written(network, tmp_path):
         "style.css",
         "report.json",
     }
+
+
+def test_a_badge_is_written_for_every_ranked_key(network, tmp_path):
+    built, _pages_map = _pages(network, tmp_path)
+    badges = sorted(path.name for path in (tmp_path / "badges").iterdir())
+
+    assert len(badges) == len(built["index"]["keys"])
+    for row in built["index"]["keys"]:
+        expected = row["identity"].removeprefix("did:key:")[:16] + ".svg"
+        assert expected in badges
+
+
+def test_a_badge_file_name_comes_from_the_key_not_the_rank(network, tmp_path):
+    """A rank moves with every snapshot; a badge URL an agent published must not."""
+    built, _pages_map = _pages(network, tmp_path)
+    top = built["index"]["keys"][0]["identity"]
+    name = top.removeprefix("did:key:")[:16] + ".svg"
+    svg = (tmp_path / "badges" / name).read_text(encoding="utf-8")
+
+    assert "TECHNOCORE CENSUS" in svg
+    assert "#1" in svg
+    assert built["census"]["captured_at"][:10] in svg
+    assert "<script" not in svg
 
 
 def test_hostile_message_text_is_escaped_and_never_becomes_a_link(network, tmp_path):

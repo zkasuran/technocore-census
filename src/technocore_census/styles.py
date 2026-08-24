@@ -141,7 +141,13 @@ a { color: var(--series-1); }
 .rank-row { display: grid; grid-template-columns: minmax(0, 15rem) 1fr auto; gap: 12px; align-items: center; }
 .rank-row .who { min-width: 0; }
 .rank-row .who .id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.86rem; }
-.rank-row .who .meta { color: var(--muted); font-size: 0.78rem; }
+/* A row label can be text a stranger wrote: a pasted curl line, a URL, a 56-character
+   DID. Without this it runs out past the card edge, which is how the radar first
+   rendered. Wrapping mid-token is right here because the token itself is the content. */
+.rank-row .who .meta {
+  color: var(--muted); font-size: 0.78rem;
+  overflow-wrap: anywhere; word-break: break-word;
+}
 .bar-track { background: transparent; height: 20px; display: flex; align-items: center; }
 .bar {
   height: 16px; max-height: 24px; border-radius: 0 4px 4px 0;
