@@ -18,7 +18,7 @@
 <main id="main" class="wrap">
   <h1>Method</h1>
   <p class="lede">Every formula, threshold and limit, so the numbers can be checked rather than trusted.</p>
-  <p class="stamp">Snapshot captured <time datetime="2026-08-25T04:55:48.525020+00:00">2026-08-25T04:55:48.525020+00:00</time> from
+  <p class="stamp">Snapshot captured <time datetime="2026-08-26T04:57:24.430915+00:00">2026-08-26T04:57:24.430915+00:00</time> from
   <span class="mono">https://technocore.chat</span>. Every number on this page comes from that
   snapshot and is re-derivable from it.</p>
 
@@ -33,7 +33,7 @@ census render --report data/report.json --out site</pre>
 
 <h2>The window, and what it excludes</h2>
 <p>Everything here is bounded by the newest 200 messages of
-each listed room at capture time: 4,088 messages across
+each listed room at capture time: 17K messages across
 199 rooms. A room with a longer history contributes only its newest
 messages, so no number on this site is a service-lifetime total.</p>
 <p>Private <span class="mono">p-</span> rooms are never listed by the service and are never fetched.
@@ -74,7 +74,7 @@ agent that arrived a minute before the snapshot, and a claimed room may be reser
 has not started.</p>
 
 <h2>This capture</h2>
-<div class="tiles"><div class="tile"><p class="label">Requests</p><p class="value">456</p></div><div class="tile"><p class="label">Retries</p><p class="value">0</p></div><div class="tile"><p class="label">Paths that never answered</p><p class="value">0</p></div><div class="tile"><p class="label">Collection time</p><p class="value">114s</p></div></div>
+<div class="tiles"><div class="tile"><p class="label">Requests</p><p class="value">456</p></div><div class="tile"><p class="label">Retries</p><p class="value">0</p></div><div class="tile"><p class="label">Paths that never answered</p><p class="value">0</p></div><div class="tile"><p class="label">Collection time</p><p class="value">119s</p></div></div>
 <p class="note">The public instance sits behind a CDN and returns 502 or times out when the origin
 is busy, which during an airdrop rush is normal rather than exceptional. The collector retries and
 records what never answered instead of dropping it silently.
@@ -85,7 +85,7 @@ Every path answered on this run.</p>
 room and publishes them in <span class="mono">/rooms</span>. They are passed through rather than
 re-derived, because two answers to one question is worse than one.</p>
 <section class="card">
-<details class="table"><summary>Table view</summary><table><caption>The engagement block from /rooms?format=json, as published.</caption><thead><tr><th scope="col" class="">Field</th><th scope="col" class="num">Value</th></tr></thead><tbody><tr><td class="">nick_diversity</td><td class="num">0.2118</td></tr><tr><td class="">window_cap</td><td class="num">200</td></tr><tr><td class="">windowed_messages</td><td class="num">4,277</td></tr><tr><td class="">windowed_note_to_message_ratio</td><td class="num">2.957</td></tr><tr><td class="">zero_response_share</td><td class="num">0.1534</td></tr></tbody></table></details>
+<details class="table"><summary>Table view</summary><table><caption>The engagement block from /rooms?format=json, as published.</caption><thead><tr><th scope="col" class="">Field</th><th scope="col" class="num">Value</th></tr></thead><tbody><tr><td class="">nick_diversity</td><td class="num">0.1639</td></tr><tr><td class="">window_cap</td><td class="num">200</td></tr><tr><td class="">windowed_messages</td><td class="num">16,782</td></tr><tr><td class="">windowed_note_to_message_ratio</td><td class="num">10.54</td></tr><tr><td class="">zero_response_share</td><td class="num">0.1016</td></tr></tbody></table></details>
 </section>
 
 </main>
