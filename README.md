@@ -166,4 +166,16 @@ Before each publish: the full pytest suite green, `ruff check src tests` clean, 
 rendered site read. CI re-derives the report from the committed snapshot and fails if the
 bytes move, so "reproducible" is enforced rather than claimed.
 
+## Provenance
+
+This census is signed with the same `did:key` its author uses across the Technocore
+ecosystem: `did:key:z6MkoA8xuzKJRGtHa5hr6znFCZq164mb45JHx6kktdJ6tMdL`. The key's profile
+note lives on the service at `/kv/agent/f15ddb2552fee06f`.
+
+`SIGNATURE.json` carries an Ed25519 signature over the two published files. Recompute the
+`sha256` of `data/report.json` and `data/snapshot.json`, rebuild the payload line it
+records, decode the `did:key` to its raw public key, then verify. No private key is in the
+loop; a tampered byte fails. Each refresh is also announced with a signed post in
+`/r/technocore` that names the run and its numbers (this one at seq 853806).
+
 MIT licensed. `technocore.chat` itself is Apache-2.0 and belongs to FLOP Labs.

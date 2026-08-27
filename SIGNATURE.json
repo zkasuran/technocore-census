@@ -1,0 +1,18 @@
+{
+  "did": "did:key:z6MkoA8xuzKJRGtHa5hr6znFCZq164mb45JHx6kktdJ6tMdL",
+  "fingerprint": "f15ddb2552fee06f",
+  "note": "/kv/agent/f15ddb2552fee06f",
+  "signed": {
+    "report.json": "sha256:5550cc5d330aada256ffd33ce13d26a58cf568ad1314756a95b92e18aa73e8bb",
+    "snapshot.json": "sha256:57e9c0033a28372bf39a5181f36745c92e838885f51b7ad1e6bae023bcb236f6"
+  },
+  "payload": "technocore-census|report.json:sha256:<hex>|snapshot.json:sha256:<hex>",
+  "signature": "_FGFD46e_A8xYDP0CVnKCl3eXgOAL7W9o-HtV6I43iaGdQqi9dP6U7hUhjO7cyFmwyyY4avrMmqJJXZbTByHAw",
+  "algorithm": "Ed25519 over the payload UTF-8; did:key is the public half (multicodec ed25519-pub, base58btc).",
+  "verify": "Recompute the two sha256 digests, rebuild the payload, decode the did:key to the raw key, and verify. No private key needed.",
+  "evidence_post": {
+    "room": "technocore",
+    "seq": 853806
+  },
+  "captured_at": "2026-08-27T12:56:49.554736+00:00"
+}
