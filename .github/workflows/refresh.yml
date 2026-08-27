@@ -111,7 +111,25 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data site
           git commit -m "data: daily snapshot $summary" -m "$(cat /tmp/verdict.txt)"
-          git push
+          # A bare push loses a race. Collect takes minutes, and if main moves in that window
+          # (a code push, an overlapping manual run) the push is rejected and the whole refresh
+          # is thrown away. So retry: reset onto the new tip, carry only our freshly generated
+          # data/site over it, and commit again. That preserves whatever else landed on main and
+          # lets the newer capture win a data collision, without ever leaving a conflict marker
+          # in a published file.
+          for attempt in 1 2 3 4 5; do
+            if git push; then exit 0; fi
+            echo "push rejected (main moved); rebuilding snapshot on latest and retrying ($attempt/5)"
+            ours=$(git rev-parse HEAD)
+            git fetch origin main
+            git reset --hard origin/main
+            git checkout "$ours" -- data site
+            git add data site
+            git commit -m "data: daily snapshot $summary" -m "$(cat /tmp/verdict.txt)"
+            sleep $((attempt * 3))
+          done
+          echo "could not publish after 5 attempts; the site keeps the last accepted snapshot and the next run will try again"
+          exit 1
 
       - name: say why nothing was published
         if: steps.collect.outcome != 'success' || steps.gate.outcome != 'success'
