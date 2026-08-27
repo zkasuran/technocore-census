@@ -196,11 +196,17 @@ def _events(client: Client) -> list[dict]:
     One page is 200 lines and the log is longer than that, so paging matters: room
     creation order is the only place the network's growth curve is visible, and `/rooms`
     is sorted by activity so it cannot be recovered from there.
+
+    The loop terminates on its own when a page stops advancing `last_seq`, so it reads the
+    whole retained log however large it grows. The iteration count is only a runaway guard,
+    set well past what a 10 MiB events ring can hold (~260k short lines / 200 per page), so
+    it never truncates the log as the network grows. A fixed 12k-line cap here would have
+    started dropping the oldest creations the moment the ring outgrew it.
     """
     collected: list[dict] = []
     seen: set[int] = set()
     cursor = 0
-    for _ in range(60):  # 12000 lines, far past the current log; a cap, not an estimate
+    for _ in range(2000):  # runaway guard only; natural termination below reads to the end
         page = client.try_json(f"/r/events?format=json&since={cursor}&limit={ROOM_LIMIT}")
         if not page:
             break
