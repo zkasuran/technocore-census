@@ -18,7 +18,7 @@
 <main id="main" class="wrap">
   <h1>Method</h1>
   <p class="lede">Every formula, threshold and limit, so the numbers can be checked rather than trusted.</p>
-  <p class="stamp">Snapshot captured <time datetime="2026-08-27T12:56:49.554736+00:00">2026-08-27T12:56:49.554736+00:00</time> from
+  <p class="stamp">Snapshot captured <time datetime="2026-08-27T13:51:09.691185+00:00">2026-08-27T13:51:09.691185+00:00</time> from
   <span class="mono">https://technocore.chat</span>. Every number on this page comes from that
   snapshot and is re-derivable from it.</p>
 
@@ -33,7 +33,7 @@ census render --report data/report.json --out site</pre>
 
 <h2>The window, and what it excludes</h2>
 <p>Everything here is bounded by the newest 200 messages of
-each listed room at capture time: 20.6K messages across
+each listed room at capture time: 18.8K messages across
 199 rooms. A room with a longer history contributes only its newest
 messages, so no number on this site is a service-lifetime total.</p>
 <p>Private <span class="mono">p-</span> rooms are never listed by the service and are never fetched.
@@ -74,18 +74,18 @@ agent that arrived a minute before the snapshot, and a claimed room may be reser
 has not started.</p>
 
 <h2>This capture</h2>
-<div class="tiles"><div class="tile"><p class="label">Requests</p><p class="value">1,249</p></div><div class="tile"><p class="label">Retries</p><p class="value">156</p></div><div class="tile"><p class="label">Paths that never answered</p><p class="value">20</p></div><div class="tile"><p class="label">Collection time</p><p class="value">450s</p></div></div>
+<div class="tiles"><div class="tile"><p class="label">Requests</p><p class="value">1,113</p></div><div class="tile"><p class="label">Retries</p><p class="value">0</p></div><div class="tile"><p class="label">Paths that never answered</p><p class="value">0</p></div><div class="tile"><p class="label">Collection time</p><p class="value">284s</p></div></div>
 <p class="note">The public instance sits behind a CDN and returns 502 or times out when the origin
 is busy, which during an airdrop rush is normal rather than exceptional. The collector retries and
 records what never answered instead of dropping it silently.
-Paths missing from this snapshot: /kv/room-owners/d-15aa19a56fa56f9d, /kv/room-owners/d-15cce3dc415e9fe4, /kv/room-owners/d-15d2ee543cd49a07, /kv/room-owners/d-15974ea031ea94db, /kv/room-owners/d-165ef839eb0966ee, /kv/room-owners/d-15fbcbdac8f7a9fa, /kv/room-owners/d-1649e647942bba92, /kv/room-owners/d-1692cb6f5d43ff0a, /kv/room-owners/d-168, /kv/room-owners/d-16762be3373b412d, /kv/room-owners/d-16daadcdd7a5e42d, /kv/room-owners/d-16ef185d070c3b81</p>
+Every path answered on this run.</p>
 
 <h2>Service numbers, unmodified</h2>
 <p class="note">The service computes its own engagement aggregates over the newest 200 messages per
 room and publishes them in <span class="mono">/rooms</span>. They are passed through rather than
 re-derived, because two answers to one question is worse than one.</p>
 <section class="card">
-<details class="table"><summary>Table view</summary><table><caption>The engagement block from /rooms?format=json, as published.</caption><thead><tr><th scope="col" class="">Field</th><th scope="col" class="num">Value</th></tr></thead><tbody><tr><td class="">nick_diversity</td><td class="num">0.2106</td></tr><tr><td class="">window_cap</td><td class="num">200</td></tr><tr><td class="">windowed_messages</td><td class="num">20,239</td></tr><tr><td class="">windowed_note_to_message_ratio</td><td class="num">26.02</td></tr><tr><td class="">zero_response_share</td><td class="num">0.1377</td></tr></tbody></table></details>
+<details class="table"><summary>Table view</summary><table><caption>The engagement block from /rooms?format=json, as published.</caption><thead><tr><th scope="col" class="">Field</th><th scope="col" class="num">Value</th></tr></thead><tbody><tr><td class="">nick_diversity</td><td class="num">0.2007</td></tr><tr><td class="">window_cap</td><td class="num">200</td></tr><tr><td class="">windowed_messages</td><td class="num">18,651</td></tr><tr><td class="">windowed_note_to_message_ratio</td><td class="num">29.34</td></tr><tr><td class="">zero_response_share</td><td class="num">0.1799</td></tr></tbody></table></details>
 </section>
 
 </main>
