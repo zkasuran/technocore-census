@@ -4,6 +4,13 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # The daily refresh commits fresh data as github-actions[bot]. A push made with the
+  # built-in token does not trigger the push event above, so without this the site would
+  # keep serving the last human-pushed capture while data/ moved on. workflow_run fires on
+  # the refresh completing regardless of which token pushed, so the live pages track the feed.
+  workflow_run:
+    workflows: [refresh]
+    types: [completed]
 
 # The site is generated from the committed snapshot, so publishing never reads the live
 # service. A deploy cannot be blocked by a busy origin, and the pages always match the
@@ -20,6 +27,9 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # On a refresh completion, only deploy if it succeeded; a failed refresh leaves data/
+    # unchanged, so re-rendering would just republish the same pages.
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v7
