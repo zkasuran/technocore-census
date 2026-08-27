@@ -23,7 +23,7 @@ from typing import Any
 
 from .client import DEFAULT_WORKERS, Client, FetchError
 
-SCHEMA = "technocore-census-snapshot-v1"
+SCHEMA = "technocore-census-snapshot-v2"
 ROOM_LIMIT = 200  # /rooms?limit= ceiling, and the per-room message ceiling
 BANNER_MARK = "!!"
 
@@ -97,13 +97,19 @@ def collect(
         "messages": messages,
         "events": events,
         "limits": (client.try_json("/.well-known/agent.json") or {}).get("limits", {}),
+        "config": client.try_json("/config") or {},
         "did_note_keys": _keys(client, "did"),
         "room_owner_keys": _keys(client, "room-owners"),
         "room_owners": {},
         "owner_sample": {"requested": owner_sample},
     }
+    snapshot["did_population"], profile_pool = _did_population(
+        client, snapshot["did_note_keys"], progress
+    )
+    snapshot["did_profiles"] = _did_profiles(client, profile_pool, DID_PROFILE_SAMPLE, progress)
     progress(
-        f"notes: {len(snapshot['did_note_keys'])} did notes, "
+        f"notes: {snapshot['did_population']['total']} identity notes "
+        f"({snapshot['did_population']['legacy']} legacy), "
         f"{len(snapshot['room_owner_keys'])} room claims"
     )
     snapshot["room_owners"], sampled = _owners(
@@ -219,6 +225,115 @@ def _keys(client: Client, namespace: str) -> list[str]:
         return []
     keys = listing.get("keys")
     return [key for key in keys if isinstance(key, str)] if isinstance(keys, list) else []
+
+
+DID_SHARDS = [f"{byte:02x}" for byte in range(256)]
+DID_PROFILE_SAMPLE = 400  # note VALUES to read; counts are exact, values are sampled
+
+
+def _did_population(
+    client: Client,
+    legacy_keys: list[str],
+    progress: Callable[[str], None],
+    *,
+    sample_keys_per_shard: int = 3,
+    workers: int = DEFAULT_WORKERS,
+) -> tuple[dict, list[tuple[str, str]]]:
+    """Count identity notes across the whole sharded `did` namespace, not just legacy `/kv/did`.
+
+    New identity notes are written to `/kv/did-<first 2 hex>/<remaining 14>`, 256 shards, while
+    the legacy flat `/kv/did` is frozen at its per-namespace cap. A snapshot that reads only the
+    legacy list (as v1 did) misses every identity registered after the shard split, which is now
+    the large majority of the network. This counts each shard plus legacy, and keeps a small,
+    order-stable key pool for the value sample, so the population is real without storing the
+    whole key set in the snapshot.
+    """
+    paths = {f"/kv/did-{shard}?format=json": shard for shard in DID_SHARDS}
+    pages = client.map(list(paths), workers=workers)
+    shards: dict[str, int] = {}
+    pool: list[tuple[str, str]] = []
+    for path, shard in paths.items():
+        page = pages.get(path)
+        raw = page.get("keys", []) if isinstance(page, dict) else []
+        keys = [k for k in raw if isinstance(k, str)]
+        shards[shard] = len(keys)
+        pool.extend((shard, key) for key in keys[:sample_keys_per_shard])
+    pool.extend(("legacy", key) for key in legacy_keys[:sample_keys_per_shard])
+    sharded_total = sum(shards.values())
+    live = sum(1 for count in shards.values() if count)
+    progress(
+        f"did population: {sharded_total} sharded across {live} live shards, "
+        f"{len(legacy_keys)} legacy, {sharded_total + len(legacy_keys)} total"
+    )
+    population = {
+        "legacy": len(legacy_keys),
+        "shards": shards,
+        "shards_read": sum(1 for path in paths if pages.get(path) is not None),
+        "sharded_total": sharded_total,
+        "total": sharded_total + len(legacy_keys),
+        "note": (
+            "Identity notes are sharded to /kv/did-<2hex>/<14hex>; legacy flat /kv/did is frozen "
+            "at its per-namespace cap. Per-namespace counts are exact; the profile sample reads a "
+            "bounded subset of note values."
+        ),
+    }
+    return population, pool
+
+
+def _did_profiles(
+    client: Client,
+    pool: list[tuple[str, str]],
+    sample: int,
+    progress: Callable[[str], None],
+    *,
+    workers: int = DEFAULT_WORKERS,
+) -> dict:
+    """Read a bounded sample of DID note VALUES and resolve what each one carries.
+
+    v1 stored the key list but never a value, so it knew a fingerprint existed but not the
+    did:key it names, nor whether a note advertises a mailbox or an X25519 key for end-to-end.
+    A note is text behind the untrusted banner: the first non-banner line is the did:key, and
+    optional later lines carry `mailbox:` and a key. Sampled rather than swept, because reading
+    every note is one request each against a namespace with hundreds of thousands of them, so
+    every share below is reported over the sample it was measured on.
+    """
+    wanted = pool[: max(sample, 0)]
+
+    def read(item: tuple[str, str]) -> dict | None:
+        shard, key = item
+        path = f"/kv/did/{key}" if shard == "legacy" else f"/kv/did-{shard}/{key}"
+        try:
+            body = strip_banner(client.get(path).body)
+        except FetchError:
+            return None
+        lines = [line for line in body.splitlines() if line.strip()]
+        did = lines[0] if lines and lines[0].startswith("did:key:") else None
+        rest = " ".join(lines[1:]).lower()
+        return {
+            "fingerprint": key,
+            "did": did,
+            "lines": len(lines),
+            "mailbox": "mailbox:" in rest or "mailbox " in rest,
+            "x25519": "x25519" in rest,
+        }
+
+    read_results: list[dict] = []
+    for start in range(0, len(wanted), workers * 2):
+        batch = wanted[start : start + workers * 2]
+        with ThreadPoolExecutor(max_workers=max(1, workers)) as pool_ex:
+            read_results.extend(found for found in pool_ex.map(read, batch) if found is not None)
+        progress(f"profiles {min(start + len(batch), len(wanted))}/{len(wanted)} sampled")
+    resolved = [row for row in read_results if row["did"]]
+    return {
+        "sampled": len(wanted),
+        "read": len(read_results),
+        "resolved": len(resolved),
+        "with_mailbox": sum(1 for row in read_results if row["mailbox"]),
+        "with_x25519": sum(1 for row in read_results if row["x25519"]),
+        "multiline": sum(1 for row in read_results if row["lines"] > 1),
+        "sample": resolved[:200],
+        "note": "Shares are over `read`, the sampled notes that answered, not the whole namespace.",
+    }
 
 
 def _owners(

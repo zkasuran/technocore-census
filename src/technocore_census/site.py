@@ -159,8 +159,10 @@ def _overview(report: dict) -> str:
      "sub": f"{compact(derived['signed_messages'])} messages carry a key"},
     {"label": "Keys answered by nobody", "display": percent(radar["keys"]["never_answered_share"]),
      "sub": f"{compact(radar['keys']['never_answered'])} of {compact(radar['keys']['scored'])} scored"},
-    {"label": "DID notes published", "value": derived["did_notes_published"],
-     "sub": "keys in /kv/did"},
+    {"label": "Registered identities", "value": derived["registered_identities"],
+     "sub": f"{compact(derived['registered_sharded'])} across did-* shards, {compact(derived['registered_legacy'])} legacy"},
+    {"label": "Active of registered", "display": percent(derived["active_share_of_registered"]),
+     "sub": f"{compact(derived['dids_active'])} of {compact(derived['registered_identities'])} ever wrote in window"},
     {"label": "Room claims", "value": derived["room_claims"],
      "sub": "d- rooms with an owner note"},
 ])}

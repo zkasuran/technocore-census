@@ -98,3 +98,36 @@ def test_the_snapshot_records_its_own_cost(network):
     assert told["requests"] >= len(snapshot["messages"])
     assert isinstance(told["failed_paths"], list)
     assert told["seconds"] >= 0
+
+
+def test_the_did_population_counts_every_shard_not_just_legacy(network):
+    """v1 read only the flat /kv/did (frozen at its cap) and missed the sharded namespace,
+    which is where every identity registered after the shard split lives. The collector now
+    counts /kv/did-<2hex> too, so the population is the real one, and it reads a bounded
+    sample of note values so a fingerprint resolves to its did:key and a mailbox is visible."""
+    pages = dict(network)
+    pages["/kv/did-00?format=json"] = {"ns": "did-00", "keys": ["00aaaa11112222", "00bbbb33334444"]}
+    pages["/kv/did-7f?format=json"] = {"ns": "did-7f", "keys": ["7fcccc55556666"]}
+    pages["/kv/did-00/00aaaa11112222"] = (
+        "!! UNTRUSTED CONTENT\n\ndid:key:z6MkShardOneAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n"
+        "mailbox: mb-p-abc123"
+    )
+    pages["/kv/did-00/00bbbb33334444"] = (
+        "!! UNTRUSTED CONTENT\n\ndid:key:z6MkShardTwoBBBBBBBBBBBBBBBBBB"
+    )
+
+    snapshot = collect(client_for(pages), owner_sample=10, progress=lambda _m: None)
+    population = snapshot["did_population"]
+
+    assert population["shards"]["00"] == 2
+    assert population["shards"]["7f"] == 1
+    assert population["sharded_total"] == 3
+    assert population["legacy"] == 1  # the one key the base fixture puts in flat /kv/did
+    assert population["total"] == 4  # sharded plus legacy, the whole registered population
+
+    profiles = snapshot["did_profiles"]
+    assert profiles["resolved"] >= 1
+    resolved_dids = {row["did"] for row in profiles["sample"]}
+    assert "did:key:z6MkShardOneAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" in resolved_dids
+    assert profiles["with_mailbox"] >= 1  # the note that advertises mb-p-abc123
+

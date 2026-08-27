@@ -18,13 +18,12 @@ from collections import Counter
 
 from .messages import Table
 
-# `/llms.txt` documents 40960 notes in total and 5120 per namespace. The per-namespace
-# figure is named here because it is the one that actually bites and the one a machine
-# reader cannot find: `/.well-known/agent.json` publishes `notes: 40960` and nothing per
-# namespace, and `/rooms` reports the global aggregate. So a full `/kv/did` looks like
-# plenty of headroom right up to the 400. Measured 2026-08-24: `did` held 5120 of 5120
-# while `/rooms` showed 9941 of 40960 notes used.
-NOTES_PER_NAMESPACE = 5120
+# Fallback only. The live per-namespace note cap is read from the snapshot's own `limits`
+# (`notes_per_namespace`) or `/config` (`max_notes_per_ns`), because it is a per-deployment
+# number that has already moved once: it was 5120 when this project started and is 50960 on
+# the public instance as of 2026-08-27. Hardcoding it is how a published figure goes stale, so
+# it is only the value used when a snapshot carries neither source.
+NOTES_PER_NAMESPACE_FALLBACK = 50960
 
 
 def summarize(snapshot: dict, table: Table) -> dict:
@@ -39,7 +38,19 @@ def summarize(snapshot: dict, table: Table) -> dict:
 
     idle = [room.get("idle_seconds") for room in rooms if isinstance(room.get("idle_seconds"), int)]
     single = sum(1 for room in rooms if room.get("last_seq") == 1)
-    did_notes = len(snapshot.get("did_note_keys") or [])
+
+    limits = snapshot.get("limits") or {}
+    config_settings = (snapshot.get("config") or {}).get("settings") or {}
+    per_ns_cap = (
+        limits.get("notes_per_namespace")
+        or config_settings.get("max_notes_per_ns")
+        or NOTES_PER_NAMESPACE_FALLBACK
+    )
+    population = snapshot.get("did_population") or {}
+    profiles = snapshot.get("did_profiles") or {}
+    legacy_notes = population.get("legacy", len(snapshot.get("did_note_keys") or []))
+    registered = population.get("total", legacy_notes)
+    profiles_read = profiles.get("read") or 0
 
     return {
         "captured_at": snapshot.get("captured_at"),
@@ -70,9 +81,26 @@ def summarize(snapshot: dict, table: Table) -> dict:
             "nicks_active": len(nicks),
             "signed_messages": signed_messages,
             "signed_share": _share(signed_messages, len(table.messages)),
-            "did_notes_published": did_notes,
-            "did_notes_capacity": NOTES_PER_NAMESPACE,
-            "did_notes_at_capacity": did_notes >= NOTES_PER_NAMESPACE,
+            # The whole registered identity population, counted across every did-<shard>
+            # namespace plus the frozen legacy one, not just legacy /kv/did as v1 did.
+            "registered_identities": registered,
+            "registered_sharded": population.get("sharded_total", 0),
+            "registered_legacy": legacy_notes,
+            "per_namespace_cap": per_ns_cap,
+            "legacy_at_capacity": (legacy_notes >= per_ns_cap) if per_ns_cap else None,
+            # Registered is service-lifetime; dids_active is only writers seen in this window,
+            # so this is a lower bound on "how many of the registered ever say anything here".
+            "active_share_of_registered": _share(len(dids), registered),
+            "identity_profile_sample": {
+                "sampled": profiles.get("sampled", 0),
+                "read": profiles_read,
+                "resolved": profiles.get("resolved", 0),
+                "mailbox_share": _share(profiles.get("with_mailbox", 0), profiles_read),
+                "x25519_share": _share(profiles.get("with_x25519", 0), profiles_read),
+                "note": "Shares are over the sampled notes that answered, not the whole namespace.",
+            },
+            # Kept so existing renderers show the true total rather than only the legacy count.
+            "did_notes_published": registered,
             "room_claims": len(snapshot.get("room_owner_keys") or []),
             "rooms_created_logged": len(snapshot.get("events") or []),
             "rooms_on_first_message": single,
