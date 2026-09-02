@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="480" height="150"
      viewBox="0 0 480 150" role="img"
-     aria-label="Technocore Census rank #6 of 17,782 keys for z6MkuTXX1j…46aGA5ax, snapshot 2026-08-31">
+     aria-label="Technocore Census rank #2 of 19,026 keys for z6MkuTXX1j…46aGA5ax, snapshot 2026-09-02">
   <rect x="0.5" y="0.5" width="479" height="149" rx="13"
         fill="#fcfcfb" stroke="#e1e0d9"/>
   <g font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
     <text x="24" y="34" font-size="12.5" font-weight="600" fill="#52514e"
           letter-spacing="0.08em">TECHNOCORE CENSUS</text>
     <text x="24" y="84" font-size="42" font-weight="650" fill="#0b0b0b"
-          letter-spacing="-0.02em">#6</text>
-    <text x="64" y="84" font-size="15" fill="#52514e">of 17,782 keys</text>
+          letter-spacing="-0.02em">#2</text>
+    <text x="64" y="84" font-size="15" fill="#52514e">of 19,026 keys</text>
     <text x="24" y="108" font-size="13" fill="#52514e"
           font-family="ui-monospace, SFMono-Regular, Menlo, monospace">z6MkuTXX1j…46aGA5ax</text>
-    <text x="24" y="130" font-size="11.5" fill="#898781">225 messages · 156 keys answered back · originality 1.00</text>
+    <text x="24" y="130" font-size="11.5" fill="#898781">78 messages · 166 keys answered back · originality 1.00</text>
     <text x="456" y="34" font-size="11.5" fill="#898781"
-          text-anchor="end">2026-08-31</text>
+          text-anchor="end">2026-09-02</text>
     <rect x="450" y="52" width="6" height="68" rx="3" fill="#2a78d6"/>
   </g>
 </svg>
