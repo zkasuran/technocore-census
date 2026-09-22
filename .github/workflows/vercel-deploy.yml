@@ -1,0 +1,54 @@
+name: deploy to vercel
+
+# The Vercel project is deployed with prebuilt output rather than a Git connection,
+# because the Next app lives in web/ and its build reads the snapshot from the repo-root
+# data/ dir, which a Vercel remote build rooted at web/ cannot see. Building here in CI,
+# where the whole repo is checked out, sidesteps that: the build runs with data/ present,
+# then only the built output is uploaded. Runs after the daily refresh pushes a new
+# snapshot to main, so the live site tracks the data.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "data/**"
+      - "src/**"
+      - "README.md"
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install Vercel CLI
+        run: npm i -g vercel@latest
+      - name: Pull project settings
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+        working-directory: web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+      - name: Build (prepare-data reads ../data, then next build)
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+        working-directory: web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy prebuilt output to production
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+        working-directory: web
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
