@@ -51,6 +51,13 @@ function main() {
     return;
   }
 
+  // Keep a full copy inside the web root so Vercel can trace it into the API
+  // functions at runtime. The source lives at repo-root/data (outside the Next root),
+  // which serverless file tracing cannot reach; this copy inside web/ can.
+  const RUNTIME = join(WEB, "data");
+  mkdirSync(RUNTIME, { recursive: true });
+  writeFileSync(join(RUNTIME, "report.json"), JSON.stringify(report));
+
   const keys = report.index?.keys ?? [];
   const captured_at = report.census?.captured_at ?? null;
 

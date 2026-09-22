@@ -6,3 +6,4 @@ out
 next-env.d.ts
 # generated slices (rebuilt by prepare-data on every build)
 public/data/
+/data/

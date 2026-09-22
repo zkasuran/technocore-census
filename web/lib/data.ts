@@ -11,6 +11,9 @@ import type { Leaderboard, Census, Radar, Feed, History, KeyRow, Report } from "
 
 const WEB = process.cwd();
 const PUB = join(WEB, "public", "data");
+// Prefer the in-root copy prepare-data writes (traceable into Vercel functions),
+// fall back to the repo-root data dir for local runs.
+const RUNTIME_DATA = join(WEB, "data");
 const REPO_DATA = join(WEB, "..", "data");
 
 function readJson<T>(path: string, fallback: T): T {
@@ -58,9 +61,11 @@ export function getHistory(): History {
 
 /** The full report, read only server-side for the long tail of keys. */
 export function getFullReport(): Report | null {
-  const path = join(REPO_DATA, "report.json");
-  if (!existsSync(path)) return null;
-  return readJson<Report | null>(path, null);
+  for (const dir of [RUNTIME_DATA, REPO_DATA]) {
+    const path = join(dir, "report.json");
+    if (existsSync(path)) return readJson<Report | null>(path, null);
+  }
+  return null;
 }
 
 /** Look up one key by full did:key, from the profile slice first then the full report. */
