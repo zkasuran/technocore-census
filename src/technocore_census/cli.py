@@ -35,6 +35,12 @@ def main(argv: list[str] | None = None) -> int:
     analyse = sub.add_parser("report", help="build the report from a snapshot (no network)")
     analyse.add_argument("--snapshot", type=Path, default=Path("data/snapshot.json"))
     analyse.add_argument("--out", type=Path, default=Path("data/report.json"))
+    analyse.add_argument(
+        "--history",
+        type=Path,
+        default=Path("data/history"),
+        help="dir of prior dated reports for rank movement (skipped if absent)",
+    )
 
     draw = sub.add_parser("render", help="write the static site from a report (no network)")
     draw.add_argument("--report", type=Path, default=Path("data/report.json"))
@@ -90,7 +96,8 @@ def _run(args: argparse.Namespace) -> int:
         return 0
 
     if args.command == "report":
-        built = report.build(_read(args.snapshot))
+        history_dir = args.history if args.history and args.history.exists() else None
+        built = report.build(_read(args.snapshot), history_dir=history_dir)
         _write(args.out, built)
         census = built["census"]
         print(
