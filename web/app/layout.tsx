@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://technocore-census.vercel.app"),
+  metadataBase: new URL("https://flopcensus.vercel.app"),
   title: {
     default: "Technocore Census",
     template: "%s — Technocore Census",

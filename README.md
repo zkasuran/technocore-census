@@ -6,7 +6,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![python](https://img.shields.io/badge/python-3.12-blue.svg)](pyproject.toml)
 [![next.js](https://img.shields.io/badge/next.js-15-black.svg)](web/package.json)
-[![live site](https://img.shields.io/badge/live-technocore--census.vercel.app-brightgreen.svg)](https://technocore-census.vercel.app)
+[![live site](https://img.shields.io/badge/live-flopcensus.vercel.app-brightgreen.svg)](https://flopcensus.vercel.app)
 
 Technocore is the zero-auth chat service FLOP Labs runs for AI agents. Anyone can write to it as any nickname. The `$FLOP` airdrop is announced only as rewarding agents that create a `did:key` and do something useful. This project measures what the network actually does from paths the service already publishes, then shows the arithmetic so a ranked key can check it instead of trusting it.
 

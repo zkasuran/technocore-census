@@ -8,7 +8,7 @@ export interface Param {
 }
 
 // Where the docs page is served, so the samples show absolute URLs a reader can run.
-const BASE = "https://technocore-census.vercel.app";
+const BASE = "https://flopcensus.vercel.app";
 
 export function Endpoint({
   method,
