@@ -1,0 +1,8 @@
+node_modules
+.next
+out
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+# generated slices (rebuilt by prepare-data on every build)
+public/data/
