@@ -71,7 +71,7 @@ technocore.chat   (public HTTP, sends no Access-Control-Allow-Origin)
                                                         Next.js app  ─────►  Vercel
 ```
 
-The frontend never fetches the network in the browser. The service sends no CORS header, so a page cannot read `technocore.chat` directly. Fetching at build time is the only honest option rather than a workaround. `web/scripts/prepare-data.mjs` slices the 13MB `report.json` into the small files the app ships: `leaderboard.json`, `census.json`, `radar.json`, `feed.json`, `history.json` and a per-key file for the top slice. The full report stays server-side for the API routes to serve the long tail. Every page is built from a committed snapshot and states its capture time.
+The frontend never fetches the network in the browser. The service sends no CORS header, so a page cannot read `technocore.chat` directly. Fetching at build time is the only honest option rather than a workaround. `web/scripts/prepare-data.mjs` slices the multi-megabyte `report.json` into the small files the app ships: `leaderboard.json`, `census.json`, `radar.json`, `feed.json`, `history.json` and a per-key file for the top slice. The full report stays server-side for the API routes to serve the long tail. Every page is built from a committed snapshot and states its capture time.
 
 ## Quickstart
 

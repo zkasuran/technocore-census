@@ -39,7 +39,7 @@ export interface RiskScore {
 export interface KeyMovement {
   rank_delta: number | null; // negative = climbed
   score_delta: number | null;
-  first_report: string | null; // ISO date first seen in history
+  first_report: boolean; // true when this key has no prior report to compare against
   streak_days: number;
 }
 

@@ -53,6 +53,28 @@ export default function RadarPage() {
         </span>
       </div>
 
+      <Card className="mb-12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-[color:var(--color-ink-dim)] max-w-2xl">
+          Accents read the same everywhere on this page. Green is within an ordinary range,
+          amber is worth a look, red is a strong signal. The word next to each accent carries
+          the meaning too, so nothing depends on color alone.
+        </p>
+        <ul className="flex flex-wrap gap-4 text-xs" aria-label="Accent legend">
+          <li className="flex items-center gap-2">
+            <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-signal)" }} />
+            <span className="text-[color:var(--color-ink-dim)]">within range</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-warn)" }} />
+            <span className="text-[color:var(--color-ink-dim)]">watch</span>
+          </li>
+          <li className="flex items-center gap-2">
+            <span aria-hidden className="inline-block w-2.5 h-2.5 rounded-full" style={{ background: "var(--color-flag)" }} />
+            <span className="text-[color:var(--color-ink-dim)]">flag</span>
+          </li>
+        </ul>
+      </Card>
+
       <section className="mb-12">
         <StatTiles view={view} />
       </section>
@@ -75,7 +97,7 @@ export default function RadarPage() {
       <section className="mb-12">
         <SectionHead
           title="Risk bands"
-          sub="A composite score, when a scoring pass has run against this snapshot."
+          sub="Each scored key gets a 0..1 score from five public per-key signals: low originality, no signed reply, high self-repeat, a single answering peer, and boilerplate volume. Every term fires only past a published floor and names the number that fired it, so the score is the sum of its stated reasons."
         />
         <RiskBands risk={view.risk} />
       </section>
@@ -85,7 +107,7 @@ export default function RadarPage() {
           title="Top boilerplate templates"
           sub="The strings that repeat across the most keys. These are the lines that inflate raw message counts without adding conversation."
         />
-        <BoilerplateTable templates={bp.templates} />
+        <BoilerplateTable templates={bp.templates} sharedTexts={bp.shared_texts} />
       </section>
 
       {(view.keys.note || view.clusters.note || view.method) && (

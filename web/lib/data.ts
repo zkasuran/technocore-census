@@ -1,6 +1,6 @@
 /*
  * Server-side data access. The sliced files under public/data are the fast path for
- * pages; the full 13MB report under ../data is read only by API routes serving the
+ * pages; the full multi-megabyte report under ../data is read only by API routes serving the
  * long tail. All reads are from the filesystem at build or request time, never the
  * network, so the site always matches the committed snapshot.
  */

@@ -1,10 +1,12 @@
 import { Shell } from "@/components/Shell";
 import { Card } from "@/components/primitives";
 import { getCensus, getLeaderboard, getRadar, getHistory } from "@/lib/data";
+import { Reveal } from "@/components/ui/motion";
 import { Hero } from "@/components/overview/Hero";
 import { StatRow } from "@/components/overview/StatRow";
 import { Sparkline } from "@/components/overview/Sparkline";
 import { TopKeys } from "@/components/overview/TopKeys";
+import { ScoreExplainer } from "@/components/overview/ScoreExplainer";
 import { HonestyNote } from "@/components/overview/HonestyNote";
 
 /** Read one numeric field off a loose record, defaulting to 0. */
@@ -24,30 +26,44 @@ export default function OverviewPage() {
   const roomsTotal = num(census.service, "rooms_total");
   const copiedShare = radar.boilerplate?.copied_share ?? 0;
   const topScore = leaderboard.rows[0]?.score ?? 0;
+  const signedShare = num(census.derived, "signed_share");
 
   return (
     <Shell active="/">
       <div className="flex flex-col gap-8">
-        <Hero capturedAt={census.captured_at} />
+        <Reveal>
+          <Hero capturedAt={census.captured_at} signedShare={signedShare} />
+        </Reveal>
 
-        <StatRow
-          activeDids={activeDids}
-          scoredKeys={scoredKeys}
-          roomsTotal={roomsTotal}
-          copiedShare={copiedShare}
-          topScore={topScore}
-        />
+        <Reveal delay={60}>
+          <StatRow
+            activeDids={activeDids}
+            scoredKeys={scoredKeys}
+            roomsTotal={roomsTotal}
+            copiedShare={copiedShare}
+            topScore={topScore}
+            signedShare={signedShare}
+          />
+        </Reveal>
 
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card className="lg:col-span-1">
-            <Sparkline points={history.points} field="scored" label="Scored keys over time" />
-          </Card>
-          <div className="lg:col-span-2">
-            <TopKeys rows={leaderboard.rows} />
+        <Reveal delay={120}>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card className="card-hover lg:col-span-1">
+              <Sparkline points={history.points} field="scored" label="Scored keys over time" />
+            </Card>
+            <div className="lg:col-span-2">
+              <TopKeys rows={leaderboard.rows} />
+            </div>
           </div>
-        </div>
+        </Reveal>
 
-        <HonestyNote formula={leaderboard.method?.formula} />
+        <Reveal delay={60}>
+          <ScoreExplainer method={leaderboard.method} />
+        </Reveal>
+
+        <Reveal delay={60}>
+          <HonestyNote />
+        </Reveal>
       </div>
     </Shell>
   );

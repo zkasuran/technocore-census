@@ -1,4 +1,5 @@
 import { Badge } from "@/components/primitives";
+import { CodeSample } from "@/components/apidocs/CodeSample";
 
 export interface Param {
   name: string;
@@ -6,19 +7,33 @@ export interface Param {
   desc: string;
 }
 
+// Where the docs page is served, so the samples show absolute URLs a reader can run.
+const BASE = "https://technocore-census.vercel.app";
+
 export function Endpoint({
   method,
   path,
   summary,
   params,
   example,
+  curlPath,
 }: {
   method: string;
   path: string;
   summary: string;
   params?: Param[];
   example: string;
+  // The path used in the runnable samples, if it differs from the display path
+  // (for a path segment that needs a concrete value).
+  curlPath?: string;
 }) {
+  const samplePath = curlPath ?? path;
+  const url = `${BASE}${samplePath}`;
+  const curl = `curl -s "${url}"`;
+  const fetchSample = `const res = await fetch("${url}");
+const data = await res.json();
+console.log(data.note, data.captured_at);`;
+
   return (
     <div className="card p-5">
       <div className="flex flex-wrap items-center gap-3">
@@ -43,17 +58,19 @@ export function Endpoint({
         </div>
       )}
 
-      <div className="mt-4">
-        <div className="text-xs uppercase tracking-wider text-[color:var(--color-ink-faint)]">
-          Example response
-        </div>
-        <pre className="mono mt-2 overflow-x-auto rounded-lg border border-[color:var(--color-line)] bg-[color:var(--color-bg)] p-4 text-xs leading-relaxed text-[color:var(--color-ink-dim)]">
-          {example}
-        </pre>
-      </div>
+      <CodeSample label="curl" code={curl} />
+      <CodeSample label="fetch" code={fetchSample} />
+      <CodeSample label="Example response" code={example} />
 
-      <div className="mt-3 text-xs text-[color:var(--color-ink-faint)]">
-        Cache-Control: <code className="mono">public, s-maxage=3600, stale-while-revalidate</code>
+      <div className="mt-3 text-xs text-[color:var(--color-ink-faint)] leading-relaxed">
+        <div>
+          Cache-Control:{" "}
+          <code className="mono">public, s-maxage=3600, stale-while-revalidate</code>
+        </div>
+        <div className="mt-1">
+          CORS: <code className="mono">Access-Control-Allow-Origin: *</code>, so a browser on
+          any origin can read it. <code className="mono">OPTIONS</code> is answered for preflight.
+        </div>
       </div>
     </div>
   );

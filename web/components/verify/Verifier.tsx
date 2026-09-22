@@ -129,7 +129,34 @@ function verify(did: string, room: string, nonce: string, text: string, sig: str
 }
 
 const INPUT_CLASS =
-  "w-full rounded-lg border border-[color:var(--color-line)] bg-[color:var(--color-panel)] px-3 py-2 text-sm text-[color:var(--color-ink)] placeholder:text-[color:var(--color-ink-faint)] outline-none focus:border-[color:var(--color-signal-dim)]";
+  "w-full rounded-lg border border-[color:var(--color-line)] bg-[color:var(--color-panel)] px-3 py-2 text-sm text-[color:var(--color-ink)] placeholder:text-[color:var(--color-ink-faint)] outline-none focus:border-[color:var(--color-signal-dim)] focus-visible:ring-2 focus-visible:ring-[color:var(--color-signal)]/60";
+
+const BTN_FOCUS =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-bg)]";
+
+// Copy to clipboard with a graceful fallback for browsers that block the async API.
+function copyText(value: string) {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(value).catch(() => fallbackCopy(value));
+  } else {
+    fallbackCopy(value);
+  }
+}
+
+function fallbackCopy(value: string) {
+  const ta = document.createElement("textarea");
+  ta.value = value;
+  ta.style.position = "fixed";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand("copy");
+  } catch {
+    /* nothing else to try */
+  }
+  document.body.removeChild(ta);
+}
 
 function Field({
   label,
@@ -245,17 +272,17 @@ export function Verifier({ initialDid = "" }: { initialDid?: string }) {
     );
   }
 
-  // Flip one byte of the current signature to show a FAIL, if a signature is present.
-  function tamperExample() {
+  // Flip one bit of the current signature. It is its own inverse, so a second click
+  // restores the original signature and the result flips back to PASS.
+  function toggleBit() {
     if (!sig.trim()) return;
     setExampleNote("");
     try {
       const bytes = decodeSignature(sig);
       bytes[0] ^= 0x01;
       setSig(base64urlnopad.encode(bytes));
-      setExampleNote("Flipped one bit of the signature. The same key and text now read FAIL.");
     } catch {
-      setExampleNote("cannot tamper a malformed signature");
+      setExampleNote("cannot alter a malformed signature");
     }
   }
 
@@ -282,14 +309,20 @@ export function Verifier({ initialDid = "" }: { initialDid?: string }) {
               <button
                 type="button"
                 onClick={loadLiveExample}
-                className="rounded-lg border border-[color:var(--color-signal-dim)] bg-[color:var(--color-signal)]/10 px-3 py-1.5 text-xs text-[color:var(--color-signal)] transition-colors hover:bg-[color:var(--color-signal)]/20"
+                className={cn(
+                  "rounded-lg border border-[color:var(--color-signal-dim)] bg-[color:var(--color-signal)]/10 px-3 py-1.5 text-xs text-[color:var(--color-signal)] transition-colors hover:bg-[color:var(--color-signal)]/20",
+                  BTN_FOCUS,
+                )}
               >
                 Load a live example
               </button>
               <button
                 type="button"
                 onClick={clearAll}
-                className="rounded-lg border border-[color:var(--color-line)] px-3 py-1.5 text-xs text-[color:var(--color-ink-dim)] transition-colors hover:text-[color:var(--color-ink)]"
+                className={cn(
+                  "rounded-lg border border-[color:var(--color-line)] px-3 py-1.5 text-xs text-[color:var(--color-ink-dim)] transition-colors hover:text-[color:var(--color-ink)]",
+                  BTN_FOCUS,
+                )}
               >
                 Clear
               </button>
@@ -307,7 +340,10 @@ export function Verifier({ initialDid = "" }: { initialDid?: string }) {
             <button
               type="button"
               onClick={fillFromEnvelope}
-              className="rounded-lg border border-[color:var(--color-line)] bg-[color:var(--color-panel-2)] px-3 py-1.5 text-sm text-[color:var(--color-ink)] transition-colors hover:border-[color:var(--color-signal-dim)]"
+              className={cn(
+                "rounded-lg border border-[color:var(--color-line)] bg-[color:var(--color-panel-2)] px-3 py-1.5 text-sm text-[color:var(--color-ink)] transition-colors hover:border-[color:var(--color-signal-dim)]",
+                BTN_FOCUS,
+              )}
             >
               Fill the fields from JSON
             </button>
@@ -330,7 +366,7 @@ export function Verifier({ initialDid = "" }: { initialDid?: string }) {
       </div>
 
       <div className="flex flex-col gap-4">
-        <ResultPanel result={result} onTamper={tamperExample} canTamper={!!sig.trim()} />
+        <ResultPanel result={result} onToggleBit={toggleBit} canToggle={!!sig.trim()} />
 
         <div className="card p-5 text-sm leading-relaxed text-[color:var(--color-ink-dim)]">
           <div className="mb-2 text-xs uppercase tracking-wider text-[color:var(--color-ink-faint)]">
@@ -368,16 +404,16 @@ export function Verifier({ initialDid = "" }: { initialDid?: string }) {
 
 function ResultPanel({
   result,
-  onTamper,
-  canTamper,
+  onToggleBit,
+  canToggle,
 }: {
   result: VerifyResult;
-  onTamper: () => void;
-  canTamper: boolean;
+  onToggleBit: () => void;
+  canToggle: boolean;
 }) {
   if (result.status === "idle") {
     return (
-      <div className="card p-5 text-sm text-[color:var(--color-ink-dim)]">
+      <div className="card p-5 text-sm text-[color:var(--color-ink-dim)]" role="status" aria-live="polite">
         Paste an envelope or fill the fields. The result appears here as you type, checked entirely
         in your browser.
       </div>
@@ -386,13 +422,14 @@ function ResultPanel({
 
   const pass = result.status === "pass";
   const color = pass ? "var(--color-signal)" : "var(--color-flag)";
+  const detail = pass
+    ? "The signature is valid for this did:key over this exact message."
+    : (result as { reason: string }).reason;
 
   return (
-    <div
-      className={cn("card p-5", pass && "glow-signal")}
-      style={{ borderColor: color }}
-    >
-      <div className="flex items-center gap-3">
+    <div className={cn("card p-5", pass && "glow-signal")} style={{ borderColor: color }}>
+      {/* One live region so a screen reader hears both the verdict and the reason. */}
+      <div className="flex items-center gap-3" role="status" aria-live="polite">
         <span
           className="inline-flex h-9 w-9 items-center justify-center rounded-full text-lg font-bold"
           style={{ color, backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)` }}
@@ -401,21 +438,19 @@ function ResultPanel({
           {pass ? "✓" : "✕"}
         </span>
         <div>
-          <div className="text-xl font-bold" style={{ color }} role="status">
+          <div className="text-xl font-bold" style={{ color }}>
             {pass ? "PASS" : "FAIL"}
           </div>
-          <div className="text-sm text-[color:var(--color-ink-dim)]">
-            {pass
-              ? "The signature is valid for this did:key over this exact message."
-              : (result as { reason: string }).reason}
-          </div>
+          <div className="text-sm text-[color:var(--color-ink-dim)]">{detail}</div>
         </div>
       </div>
 
       {"pubkeyHex" in result && result.pubkeyHex && (
         <div className="mt-4 space-y-2 text-xs">
           <Row label="Public key (hex)" value={result.pubkeyHex} />
-          {result.canonical !== undefined && <Row label="Canonical signed string" value={result.canonical} />}
+          {result.canonical !== undefined && (
+            <Row label="Canonical signed string" value={result.canonical} copyable />
+          )}
           {result.swept && (
             <p className="text-[color:var(--color-warn)]">
               The text was rewritten by the sweep before checking. That is expected. The signature
@@ -425,14 +460,18 @@ function ResultPanel({
         </div>
       )}
 
-      {canTamper && (
+      {canToggle && (
         <div className="mt-4">
           <button
             type="button"
-            onClick={onTamper}
-            className="rounded-lg border border-[color:var(--color-line)] px-3 py-1.5 text-xs text-[color:var(--color-ink-dim)] transition-colors hover:text-[color:var(--color-flag)]"
+            onClick={onToggleBit}
+            aria-pressed={!pass}
+            className={cn(
+              "rounded-lg border border-[color:var(--color-line)] px-3 py-1.5 text-xs text-[color:var(--color-ink-dim)] transition-colors hover:text-[color:var(--color-flag)]",
+              BTN_FOCUS,
+            )}
           >
-            Falsify: flip one bit of the signature
+            {pass ? "Falsify: flip one bit of the signature" : "Restore: flip the bit back"}
           </button>
         </div>
       )}
@@ -440,11 +479,33 @@ function ResultPanel({
   );
 }
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, copyable = false }: { label: string; value: string; copyable?: boolean }) {
+  const [copied, setCopied] = useState(false);
+  function onCopy() {
+    copyText(value);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
+  }
   return (
     <div>
-      <div className="uppercase tracking-wider text-[color:var(--color-ink-faint)]">{label}</div>
-      <div className="mono mt-0.5 break-all text-[color:var(--color-ink)]">{value || <span className="text-[color:var(--color-ink-faint)]">(empty)</span>}</div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="uppercase tracking-wider text-[color:var(--color-ink-faint)]">{label}</span>
+        {copyable && value && (
+          <button
+            type="button"
+            onClick={onCopy}
+            className={cn(
+              "rounded border border-[color:var(--color-line)] px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-[color:var(--color-ink-dim)] transition-colors hover:text-[color:var(--color-ink)]",
+              BTN_FOCUS,
+            )}
+          >
+            {copied ? "Copied" : "Copy"}
+          </button>
+        )}
+      </div>
+      <div className="mono mt-0.5 break-all text-[color:var(--color-ink)]">
+        {value || <span className="text-[color:var(--color-ink-faint)]">(empty)</span>}
+      </div>
     </div>
   );
 }

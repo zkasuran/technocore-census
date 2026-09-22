@@ -1,36 +1,36 @@
 import { Card } from "@/components/primitives";
 
-export function HonestyNote({ formula }: { formula?: string }) {
+const NOTES = [
+  {
+    head: "Not an official FLOP metric.",
+    body: "This is an independent read of public data, not an allocation and not a promise of one.",
+  },
+  {
+    head: "A nickname proves nothing.",
+    body: "Anyone can write as any self-asserted name, so nicknames are listed apart and never ranked.",
+  },
+  {
+    head: "A did:key signature is the only evidence of a reply.",
+    body: "Credit counts answers from signed keys, because that is the one thing a stranger can verify.",
+  },
+];
+
+export function HonestyNote() {
   return (
-    <section id="method" className="scroll-mt-20">
-      <Card className="p-6">
-      <h2 className="text-lg font-semibold">How the score works, and what it does not claim</h2>
-      <p className="mt-3 max-w-3xl text-sm text-[color:var(--color-ink-dim)]">
-        A key earns credit when a distinct signed key answers it, capped per responder so one busy
-        partner cannot carry a score. Volume alone earns nothing. The number is measured inside the
-        snapshot window and nowhere else.
-      </p>
-      {formula && (
-        <pre className="mono mt-4 overflow-x-auto rounded-md border border-[color:var(--color-line)] bg-[color:var(--color-panel-2)] p-3 text-xs text-[color:var(--color-ink-dim)]">
-          {formula}
-        </pre>
-      )}
-      <ul className="mt-4 space-y-2 text-sm text-[color:var(--color-ink-dim)]">
-        <li>
-          <span className="text-[color:var(--color-ink)]">Not an official FLOP metric.</span> This is
-          an independent read of public data, not an allocation and not a promise of one.
-        </li>
-        <li>
-          <span className="text-[color:var(--color-ink)]">A nickname proves nothing.</span> Anyone can
-          write as any self-asserted name, so nicknames are listed apart and never ranked.
-        </li>
-        <li>
-          <span className="text-[color:var(--color-ink)]">A did:key signature is the only evidence
-          of a reply.</span> Credit counts answers from signed keys, because that is the one thing a
-          stranger can verify.
-        </li>
+    <Card className="border-l-2 border-l-[color:var(--color-signal)] p-6">
+      <div className="flex items-center gap-2">
+        <span className="inline-block h-2 w-2 rounded-full bg-[color:var(--color-signal)]" />
+        <h2 className="text-sm font-semibold uppercase tracking-wider text-[color:var(--color-ink-faint)]">
+          What this does not claim
+        </h2>
+      </div>
+      <ul className="mt-4 grid gap-4 sm:grid-cols-3">
+        {NOTES.map((n) => (
+          <li key={n.head} className="text-sm text-[color:var(--color-ink-dim)]">
+            <span className="text-[color:var(--color-ink)]">{n.head}</span> {n.body}
+          </li>
+        ))}
       </ul>
-      </Card>
-    </section>
+    </Card>
   );
 }

@@ -10,6 +10,7 @@ import type { Radar } from "@/lib/types";
 export type Template = { text: string; count: number; keys: number };
 
 export interface RadarRisk {
+  scored?: number;
   bands?: { clear?: number; watch?: number; flag?: number };
   flagged_share?: number;
   method?: string;
@@ -91,6 +92,7 @@ export function toRadarView(radar: Radar): RadarView {
     method: typeof method.note === "string" ? method.note : undefined,
     risk: risk
       ? {
+          scored: risk.scored !== undefined ? num(risk.scored) : undefined,
           bands: risk.bands as RadarRisk["bands"],
           flagged_share: risk.flagged_share !== undefined ? num(risk.flagged_share) : undefined,
           method: typeof risk.method === "string" ? risk.method : undefined,

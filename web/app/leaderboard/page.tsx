@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Shell } from "@/components/Shell";
 import { PageHead } from "@/components/primitives";
 import { getLeaderboard } from "@/lib/data";
@@ -88,7 +89,15 @@ export default function LeaderboardPage() {
         </p>
       </div>
 
-      <LeaderboardTable rows={rows} />
+      <Suspense
+        fallback={
+          <div className="card p-10 text-center text-sm text-[color:var(--color-ink-faint)]">
+            Loading the index…
+          </div>
+        }
+      >
+        <LeaderboardTable rows={rows} />
+      </Suspense>
     </Shell>
   );
 }

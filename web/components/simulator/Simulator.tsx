@@ -31,6 +31,10 @@ interface Scored {
   delta: number; // newRank - publishedRank; negative = climbed
 }
 
+// Mirrors index.py Entry.score: credit x originality x (0.5 + 0.5 x reciprocity),
+// rounded to three places. Each weight is an exponent, so at 1 the factor counts
+// exactly as published, and the round keeps near-ties ordered the way the leaderboard
+// orders them. That is what makes the default view byte-for-byte the published score.
 function recompute(row: KeyRow, w: Weights): number {
   const credit = Math.max(0, row.credit);
   const originality = Math.min(1, Math.max(0, row.originality));
@@ -40,7 +44,8 @@ function recompute(row: KeyRow, w: Weights): number {
     Math.pow(credit, w.credit) *
     Math.pow(originality, w.originality) *
     Math.pow(reciprocityFactor, w.reciprocity);
-  return Number.isFinite(score) ? score : 0;
+  if (!Number.isFinite(score)) return 0;
+  return Math.round(score * 1000) / 1000;
 }
 
 function isFiltered(row: KeyRow, w: Weights): boolean {
@@ -86,7 +91,8 @@ function Slider({
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
         aria-label={label}
-        className="mt-2 w-full accent-[color:var(--color-signal)]"
+        aria-valuetext={display}
+        className="mt-2 w-full accent-[color:var(--color-signal)] rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-signal)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-bg)]"
       />
       <p className="mt-1.5 text-xs text-[color:var(--color-ink-faint)] leading-relaxed">{hint}</p>
     </div>
@@ -120,7 +126,14 @@ export function Simulator({
     }
     const scored: Scored[] = kept
       .map((row) => ({ row, score: recompute(row, w) }))
-      .sort((a, b) => b.score - a.score)
+      // Same tiebreak as index.py: score, then distinct responders, then the did string.
+      // With every weight at 1 this reproduces the published rank exactly.
+      .sort(
+        (a, b) =>
+          b.score - a.score ||
+          b.row.distinct_responders - a.row.distinct_responders ||
+          (a.row.identity < b.row.identity ? -1 : a.row.identity > b.row.identity ? 1 : 0),
+      )
       .map((s, i) => {
         const newRank = i + 1;
         const pub = publishedRank.get(s.row.identity) ?? newRank;
@@ -141,6 +154,20 @@ export function Simulator({
     () => ranked.reduce<Scored | null>((best, s) => (best === null || s.delta < best.delta ? s : best), null),
     [ranked],
   );
+
+  const biggestDrop = useMemo(
+    () => ranked.reduce<Scored | null>((worst, s) => (worst === null || s.delta > worst.delta ? s : worst), null),
+    [ranked],
+  );
+
+  // One plain-language line for screen readers, updated whenever the ranking changes.
+  const climbPlaces = biggestClimb && biggestClimb.delta < 0 ? Math.abs(biggestClimb.delta) : 0;
+  const dropPlaces = biggestDrop && biggestDrop.delta > 0 ? biggestDrop.delta : 0;
+  const announcement = isDefault
+    ? `Showing the published formula. ${ranked.length} keys ranked, none filtered.`
+    : `${ranked.length} keys ranked, ${filtered.length} filtered out. Biggest climb ${climbPlaces} ${
+        climbPlaces === 1 ? "place" : "places"
+      }, biggest fall ${dropPlaces} ${dropPlaces === 1 ? "place" : "places"}.`;
 
   return (
     <div className="flex flex-col gap-6">
@@ -274,6 +301,10 @@ export function Simulator({
 
         {/* Results */}
         <div className="flex flex-col gap-4">
+          {/* Screen readers hear the reshuffle even though it is instant on screen. */}
+          <p aria-live="polite" className="sr-only">
+            {announcement}
+          </p>
           <div className="grid grid-cols-3 gap-3">
             <div className="card p-4">
               <div className="text-xs uppercase tracking-wider text-[color:var(--color-ink-faint)]">
@@ -299,7 +330,15 @@ export function Simulator({
                 Biggest climb
               </div>
               <div className="mono mt-1 text-xl font-semibold text-[color:var(--color-signal)]">
-                {biggestClimb && biggestClimb.delta < 0 ? `${Math.abs(biggestClimb.delta)}` : "—"}
+                {climbPlaces > 0 ? (
+                  <span className="inline-flex items-center gap-1">
+                    <span aria-hidden>▲</span>
+                    {climbPlaces}
+                    <span className="sr-only">places up</span>
+                  </span>
+                ) : (
+                  <span className="text-[color:var(--color-ink-faint)]">—</span>
+                )}
               </div>
             </div>
           </div>
@@ -335,6 +374,9 @@ export function Simulator({
                     return (
                       <tr
                         key={s.row.identity}
+                        title={`credit ${s.row.credit}, originality ${percent(s.row.originality)}, reciprocity ${percent(
+                          s.row.reciprocity,
+                        )}, from ${s.row.distinct_responders} distinct responders`}
                         className={cn(
                           "border-t border-[color:var(--color-line)] hover:bg-[color:var(--color-panel-2)]/60 transition-colors",
                           big && "bg-[color:var(--color-signal)]/[0.04]",

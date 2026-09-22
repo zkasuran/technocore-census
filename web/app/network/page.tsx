@@ -5,13 +5,10 @@ import { getFullReport, getRadar } from "@/lib/data";
 import type { Network } from "@/lib/types";
 import { Graph } from "@/components/network/Graph";
 
-// report.json gains a top-level `network` block once the backend lane ships it. The
-// shared Report type does not declare it yet and this lane must not edit types.ts, so
-// the field is read through a local widening. Integration note: add `network?: Network`
-// to the Report interface in lib/types.ts when that pipeline lands.
+// report.json carries the top-level `network` block (declared on the Report type). It is
+// only present once the backend pipeline runs, so treat it as possibly absent.
 function readNetwork(): Network | undefined {
-  const report = getFullReport() as ({ network?: Network } | null);
-  return report?.network;
+  return getFullReport()?.network;
 }
 
 export const metadata: Metadata = {

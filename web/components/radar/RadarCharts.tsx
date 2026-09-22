@@ -43,10 +43,14 @@ function ShareBar({ title, note, segments }: { title: string; note: string; segm
   const datum: Record<string, number | string> = { name: title };
   for (const seg of segments) datum[seg.key] = seg.value;
 
+  const ariaLabel = `${title}: ${segments
+    .map((seg) => `${seg.label} ${compact(seg.value)}, ${percent(seg.value / total)}`)
+    .join("; ")}`;
+
   return (
-    <div className="flex flex-col gap-3">
+    <figure className="flex flex-col gap-3">
       <div className="text-sm font-medium text-[color:var(--color-ink)]">{title}</div>
-      <div className="h-14 w-full">
+      <div className="h-14 w-full" role="img" aria-label={ariaLabel}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart layout="vertical" data={[datum]} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
             <XAxis type="number" domain={[0, total]} hide />
@@ -66,7 +70,7 @@ function ShareBar({ title, note, segments }: { title: string; note: string; segm
           </BarChart>
         </ResponsiveContainer>
       </div>
-      <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
+      <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs" aria-hidden>
         {segments.map((seg) => (
           <div key={seg.key} className="flex items-center gap-2">
             <span className="inline-block w-2 h-2 rounded-full" style={{ background: seg.color }} />
@@ -76,8 +80,8 @@ function ShareBar({ title, note, segments }: { title: string; note: string; segm
           </div>
         ))}
       </div>
-      <p className="text-xs text-[color:var(--color-ink-faint)] leading-relaxed">{note}</p>
-    </div>
+      <figcaption className="text-xs text-[color:var(--color-ink-faint)] leading-relaxed">{note}</figcaption>
+    </figure>
   );
 }
 

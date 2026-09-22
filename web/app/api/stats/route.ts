@@ -1,6 +1,6 @@
-import { getHistory, getCensus } from "@/lib/data";
+import { getCensus, getLeaderboard } from "@/lib/data";
 
-// Data loaders read the local report with node:fs, so this route is Node.
+// getCensus / getLeaderboard read the local report with node:fs, so this route is Node.
 export const runtime = "nodejs";
 
 const CACHE = "public, s-maxage=3600, stale-while-revalidate";
@@ -17,14 +17,22 @@ export function OPTIONS() {
   return new Response(null, { status: 204, headers: CORS });
 }
 
+// The census aggregates: derived figures, service state and the snapshot window,
+// plus the leaderboard totals so a caller gets the headline counts in one read.
 export function GET() {
+  const census = getCensus();
+
   return Response.json(
     {
       schema: SCHEMA,
       version: VERSION,
       note: NOTE,
-      captured_at: getCensus().captured_at,
-      history: getHistory(),
+      captured_at: census.captured_at,
+      base_url: census.base_url,
+      totals: getLeaderboard().totals,
+      derived: census.derived,
+      service: census.service,
+      window: census.window,
     },
     { headers: { "Cache-Control": CACHE, ...CORS } },
   );
